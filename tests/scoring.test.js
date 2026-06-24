@@ -31,12 +31,32 @@ test('gameResult: 2라인 승=게임 승', () => {
   assert.equal(gameResult(s), 'me');
 });
 
-test('gameResult: 1:1:동점 → 전체 무승부', () => {
+test('gameResult: 1:1:동점 → 총합 높은 쪽 승(me)', () => {
   const s = {
-    me: { lines: [[D(6)], [D(2)], [D(5)]], hasMitjang: true },
-    opp: { lines: [[D(5)], [D(6)], [D(5)]], hasMitjang: false },
+    me: { lines: [[D(6)], [D(5)], [D(4)]], hasMitjang: true },   // 6,5,4 = 15
+    opp: { lines: [[D(1)], [D(6)], [D(4)]], hasMitjang: false }, // 1,6,4 = 11
     turn: 'me',
   };
+  // line0 me, line1 opp, line2 동점 → 1:1:동점 → 총합 15>11 → me
+  assert.equal(gameResult(s), 'me');
+});
+
+test('gameResult: 1:1:동점 → 총합 낮으면 패(opp)', () => {
+  const s = {
+    me: { lines: [[D(6)], [D(2)], [D(5)]], hasMitjang: true },   // 13
+    opp: { lines: [[D(5)], [D(6)], [D(5)]], hasMitjang: false }, // 16
+    turn: 'me',
+  };
+  assert.equal(gameResult(s), 'opp');
+});
+
+test('gameResult: 라인 동률 + 총합도 같으면 무승부', () => {
+  const s = {
+    me: { lines: [[D(6)], [D(2)], [D(5)]], hasMitjang: true },   // 13
+    opp: { lines: [[D(2)], [D(6)], [D(5)]], hasMitjang: false }, // 13
+    turn: 'me',
+  };
+  // line0 me, line1 opp, line2 동점, 총합 13=13 → draw
   assert.equal(gameResult(s), 'draw');
 });
 

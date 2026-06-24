@@ -16,6 +16,10 @@ export function lineResult(myLine, oppLine) {
   return a > b ? 'me' : b > a ? 'opp' : 'draw';
 }
 
+export function boardTotal(board) {
+  return board.lines.reduce((sum, line) => sum + lineSum(line), 0);
+}
+
 export function gameResult(state) {
   let me = 0;
   let opp = 0;
@@ -24,7 +28,14 @@ export function gameResult(state) {
     if (r === 'me') me++;
     else if (r === 'opp') opp++;
   }
-  return me > opp ? 'me' : opp > me ? 'opp' : 'draw';
+  if (me > opp) return 'me';
+  if (opp > me) return 'opp';
+  // 라인 승수 동률 → 세 필드 총합이 높은 쪽 승, 총합도 같으면 무승부
+  const myTotal = boardTotal(state.me);
+  const oppTotal = boardTotal(state.opp);
+  if (myTotal > oppTotal) return 'me';
+  if (oppTotal > myTotal) return 'opp';
+  return 'draw';
 }
 
 export function outcomeValue(result) {
