@@ -49,6 +49,9 @@ h1 {
 .key:hover { background: oklch(0.4091 0 0); }
 .key.active { background: var(--gold); color: #000; }
 .key-shield { color: var(--gold); }
+.keypad-block { margin-bottom: 14px; }
+.roll-block { margin-bottom: 4px; }
+.key-clear { color: var(--muted); }
 .options-row { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 4px; }
 .chk { color: var(--muted); font-size: 0.9em; display: flex; align-items: center; gap: 6px; }
 .solve-btn {
