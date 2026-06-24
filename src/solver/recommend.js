@@ -6,6 +6,9 @@ import { exactMyPlacementValue, exactBonusPlacementValue, defaultBudget } from '
 
 const EXACT_THRESHOLD = 4;
 const MC_ROLLOUTS = 400;
+// 밑장빼기는 게임당 1회뿐인 자원. 다시 굴리면 더 나은 값을 고를 수 있어 거의 항상 살짝
+// 이득으로 보이므로, 승률이 이 폭(4%p) 이상 분명히 오를 때만 권장한다(남발 방지).
+const MITJANG_MARGIN = 0.04;
 
 export function recommend(state, die, opts = {}) {
   const isBonus = !!opts.isBonus;
@@ -42,7 +45,7 @@ export function recommend(state, die, opts = {}) {
   if (!isBonus && state.me.hasMitjang && best) {
     const baseWinProb = best.winProb;
     const mitjangWinProb = mitjangValue(state, die, exact, budget, baseSeed);
-    mitjang = { recommend: mitjangWinProb > baseWinProb + 0.01, baseWinProb, mitjangWinProb };
+    mitjang = { recommend: mitjangWinProb > baseWinProb + MITJANG_MARGIN, baseWinProb, mitjangWinProb };
   }
 
   return { options, best, mitjang };

@@ -27,6 +27,7 @@ createApp({
     // 각 라인은 packed 배열(빈 칸 없음): [{value, shield}, ...] (0 = 먼저 놓인 주사위)
     const emptyBoard = () => [[], [], []];
     const st = reactive({ me: emptyBoard(), opp: emptyBoard() });
+    const isBoardEmpty = () => st.me.every((l) => l.length === 0) && st.opp.every((l) => l.length === 0);
 
     const die = ref(null);
     const ui = reactive({
@@ -81,7 +82,9 @@ createApp({
       pushHistory();
       if (ui.selected.isNew) {
         if (st[side][li].length < 3) {
-          st[side][li].push({ value: n, shield: false });
+          // 판 초기화 후 처음 놓는 주사위 = 선공의 첫 주사위 → 자동 실드
+          const firstDie = isBoardEmpty();
+          st[side][li].push({ value: n, shield: firstDie });
           ui.selected = { side, li, dieIndex: st[side][li].length - 1 };
         }
       } else {
@@ -102,6 +105,14 @@ createApp({
       const { side, li, dieIndex } = ui.selected;
       pushHistory();
       st[side][li].splice(dieIndex, 1); // packed → 자동으로 당겨짐
+      ui.selected = null;
+    }
+    function clearSlotAt(side, li, cell) {
+      // 우클릭: 해당 칸의 주사위를 바로 제거(빈 칸이면 무시)
+      const di = cellToDieIndex(side, st[side][li].length, cell);
+      if (di < 0) return;
+      pushHistory();
+      st[side][li].splice(di, 1);
       ui.selected = null;
     }
     function clearAll() {
@@ -217,7 +228,7 @@ createApp({
       die,
       ...toRefs(ui),
       canUndo, undo, clearAll,
-      selectSlot, setSlotValue, toggleSlotShield, clearSlot,
+      selectSlot, setSlotValue, toggleSlotShield, clearSlot, clearSlotAt,
       sumOf, sumClass, slotText, slotClass, rowRec, selectedLabel,
       canApplyAlkkagi, alkkagiLabel, applyAlkkagi,
       solve, pct, targetLabel, winColor,

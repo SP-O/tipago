@@ -32,7 +32,8 @@
                 v-for="c in 3" :key="'m'+c"
                 class="slot"
                 :class="slotClass('me', li - 1, c - 1)"
-                @click="selectSlot('me', li - 1, c - 1)">
+                @click="selectSlot('me', li - 1, c - 1)"
+                @contextmenu.prevent="clearSlotAt('me', li - 1, c - 1)">
                 {{ slotText('me', li - 1, c - 1) }}
               </button>
             </div>
@@ -44,7 +45,8 @@
                 v-for="c in 3" :key="'o'+c"
                 class="slot"
                 :class="slotClass('opp', li - 1, c - 1)"
-                @click="selectSlot('opp', li - 1, c - 1)">
+                @click="selectSlot('opp', li - 1, c - 1)"
+                @contextmenu.prevent="clearSlotAt('opp', li - 1, c - 1)">
                 {{ slotText('opp', li - 1, c - 1) }}
               </button>
             </div>
