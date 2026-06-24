@@ -49,3 +49,12 @@ test('recommend: 밑장빼기 보유 시 조언 객체 반환', () => {
   assert.ok(r.mitjang.baseWinProb >= 0 && r.mitjang.baseWinProb <= 1);
   assert.ok(r.mitjang.mitjangWinProb >= 0 && r.mitjang.mitjangWinProb <= 1);
 });
+
+test('통합: 중반 빈 보드에서 추천이 항상 best를 낸다', () => {
+  const s = createState();
+  s.me.hasMitjang = false;
+  for (let die = 1; die <= 6; die++) {
+    const r = recommend(s, die, { seed: die });
+    assert.ok(r.best && r.best.winProb >= 0 && r.best.winProb <= 1);
+  }
+});
