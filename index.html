@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>티카투카 어시스턴트 | 최적 수 추천</title>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Outfit:wght@800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+  <div id="app">
+    <div class="container">
+      <h1>티카투카 어시스턴트</h1>
+      <p class="subtitle">현재 판을 입력하면 이길 확률이 가장 높은 수를 알려드려요.</p>
+
+      <div class="panel">
+        <div class="board board-opp">
+          <div class="board-title">상대 필드</div>
+          <div v-for="(line, li) in opp" :key="'o'+li" class="line-row">
+            <span class="line-label">라인 {{ li + 1 }}</span>
+            <div class="slots">
+              <button
+                v-for="si in 3" :key="si"
+                class="slot"
+                :class="slotClass('opp', li, si - 1)"
+                @click="selectSlot('opp', li, si - 1)">
+                {{ slotText('opp', li, si - 1) }}
+              </button>
+            </div>
+            <span class="line-sum">합 {{ sumOf('opp', li) }}</span>
+          </div>
+        </div>
+
+        <div class="board board-me">
+          <div class="board-title">내 필드</div>
+          <div v-for="(line, li) in me" :key="'m'+li" class="line-row">
+            <span class="line-label">라인 {{ li + 1 }}</span>
+            <div class="slots">
+              <button
+                v-for="si in 3" :key="si"
+                class="slot"
+                :class="slotClass('me', li, si - 1)"
+                @click="selectSlot('me', li, si - 1)"
+                :data-rec="recHighlight('me', li)">
+                {{ slotText('me', li, si - 1) }}
+              </button>
+            </div>
+            <span class="line-sum">합 {{ sumOf('me', li) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel controls">
+        <div class="keypad-block" v-if="selected">
+          <div class="keypad-title">선택한 칸: {{ selectedLabel }}</div>
+          <div class="keypad">
+            <button v-for="n in 6" :key="n" class="key" @click="setSlotValue(n)">{{ n }}</button>
+            <button class="key key-shield" @click="toggleSlotShield()">실드</button>
+            <button class="key key-clear" @click="clearSlot()">비우기</button>
+          </div>
+        </div>
+
+        <div class="roll-block">
+          <div class="keypad-title">내가 굴린 주사위</div>
+          <div class="keypad">
+            <button
+              v-for="n in 6" :key="n"
+              class="key" :class="{ active: die === n }"
+              @click="die = n">{{ n }}</button>
+          </div>
+        </div>
+
+        <div class="options-row">
+          <label class="chk"><input type="checkbox" v-model="bonusMode" /> 보너스 주사위(실드·양쪽 배치)</label>
+          <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 밑장빼기 남음</label>
+          <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 밑장빼기 사용</label>
+        </div>
+
+        <button class="solve-btn" :disabled="!die || solving" @click="solve()">
+          {{ solving ? '계산 중…' : '추천 계산 ▶' }}
+        </button>
+      </div>
+
+      <div class="panel result" v-if="result">
+        <div class="result-card best" v-if="result.best">
+          <div class="rec-line">
+            ⭐ 추천: <strong>{{ targetLabel(result.best.target) }}</strong>
+            <span v-if="result.best.alkkagi" class="tag-alk">알까기!</span>
+          </div>
+          <div class="rec-winrate" :style="winColor(result.best.winProb)">
+            승률 {{ pct(result.best.winProb) }}
+          </div>
+        </div>
+
+        <div class="mitjang-advice" v-if="result.mitjang">
+          밑장빼기: 지금 그냥 두기 {{ pct(result.mitjang.baseWinProb) }}
+          vs 밑장빼기 {{ pct(result.mitjang.mitjangWinProb) }}
+          <strong v-if="result.mitjang.recommend" class="rec-yes">→ 권장 👍</strong>
+          <span v-else class="rec-no">→ 아껴두기</span>
+        </div>
+
+        <div class="other-options" v-if="result.options.length > 1">
+          <div class="other-title">다른 선택지</div>
+          <div v-for="(o, i) in result.options.slice(1)" :key="i" class="opt-row">
+            <span>{{ targetLabel(o.target) }}<span v-if="o.alkkagi" class="tag-alk-sm">알까기</span></span>
+            <span :style="winColor(o.winProb)">{{ pct(o.winProb) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="footnote">승률 = 양쪽이 최선을 다하고 주사위가 무작위일 때 내가 이길 확률(보수적 추정).</p>
+    </div>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
