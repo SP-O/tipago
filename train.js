@@ -13,17 +13,23 @@ import { makeRng } from './src/solver/evaluate.js';
 
 const num = (k, d) => (process.env[k] ? Number(process.env[k]) : d);
 
+// 강함 손잡이(환경변수): DEPTH가 강함의 핵심(깊을수록 강하지만 느림)
+const HIDDEN = num('TK_HIDDEN', 128);     // 신경망 은닉층 크기(용량)
+const DEPTH = num('TK_DEPTH', 0);         // self-play/평가 탐색 깊이(턴). 0=빠름, 1~2=강함
+const SAMPLES = num('TK_SAMPLES', 2);     // 주사위 샘플 수. 6 이상=정확한 기댓값
+const TEMP = num('TK_TEMP', 0.6);         // self-play 탐험 온도
+
 const CONFIG = {
-  netSizes: [75, 128, 128, 1],
+  netSizes: [75, HIDDEN, HIDDEN, 1],
   iterations: num('TK_ITERS', 40),
   gamesPerIter: num('TK_GAMES', 40),
   turnCap: 60,
-  bufferSize: 20000,
+  bufferSize: num('TK_BUFFER', 50000),
   trainStepsPerIter: num('TK_STEPS', 200),
   batchSize: 64,
   lr: 0.01,
-  selfPlay: { depth: 0, samples: 2, temperature: 0.6 }, // 빠르고 탐험적
-  eval: { depth: 0, samples: 2, temperature: 0, games: num('TK_EVAL', 30) },
+  selfPlay: { depth: DEPTH, samples: SAMPLES, temperature: TEMP },
+  eval: { depth: DEPTH, samples: SAMPLES, temperature: 0, games: num('TK_EVAL', 30) },
   modelPath: './src/solver/model.json',
   seed: num('TK_SEED', 12345),
 };
@@ -78,7 +84,7 @@ function main() {
   const adam = adamInit(net);
   const buffer = [];
 
-  console.log(`학습 시작: iters=${cfg.iterations} games/iter=${cfg.gamesPerIter} steps/iter=${cfg.trainStepsPerIter} eval=${cfg.eval.games}`);
+  console.log(`학습 시작: iters=${cfg.iterations} games/iter=${cfg.gamesPerIter} steps/iter=${cfg.trainStepsPerIter} eval=${cfg.eval.games} | hidden=${HIDDEN} depth=${DEPTH} samples=${SAMPLES} temp=${TEMP}`);
   for (let iter = 1; iter <= cfg.iterations; iter++) {
     const t0 = Date.now();
     let totTurns = 0;
