@@ -23,13 +23,9 @@ function solveAsync(payload) {
 
 createApp({
   setup() {
-    const st = reactive({
-      me: [[], [], []],   // 각 칸: {value, shield} 또는 빈 슬롯은 배열 길이로 표현 X → 고정 길이 3, null 사용
-      opp: [[], [], []],
-      // 고정 3칸 슬롯 모델: 각 라인을 [slot,slot,slot]로 두고 빈칸은 null
-    });
-    // 슬롯 모델을 고정길이 3 + null 로 초기화
-    for (const side of ['me', 'opp']) st[side] = [[null, null, null], [null, null, null], [null, null, null]];
+    // 고정 3칸 슬롯 모델: 각 라인을 [slot, slot, slot]로 두고 빈칸은 null
+    const emptyLines = () => [[null, null, null], [null, null, null], [null, null, null]];
+    const st = reactive({ me: emptyLines(), opp: emptyLines() });
 
     const die = ref(null);
     const ui = reactive({

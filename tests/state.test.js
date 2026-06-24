@@ -31,3 +31,16 @@ test('boardFull/remainingEmpty: 18칸 채우면 종료', () => {
   assert.equal(remainingEmpty(s), 0);
   assert.equal(boardFull(s), true);
 });
+
+test('createState: oppHasMitjang 옵션 반영', () => {
+  const s = createState({ oppHasMitjang: true });
+  assert.equal(s.opp.hasMitjang, true);
+  assert.equal(s.me.hasMitjang, true);
+});
+
+test('cloneState: hasMitjang도 독립 복제', () => {
+  const s = createState();
+  const c = cloneState(s);
+  c.me.hasMitjang = false;
+  assert.equal(s.me.hasMitjang, true);
+});

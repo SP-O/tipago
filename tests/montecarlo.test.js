@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createState } from '../src/state.js';
 import { makeRng } from '../src/solver/evaluate.js';
-import { rollout, montecarloValue, mcMyPlacementValue } from '../src/solver/montecarlo.js';
+import { rollout, montecarloValue, mcMyPlacementValue, mcBonusPlacementValue } from '../src/solver/montecarlo.js';
 
 const D = (value, shield = false) => ({ value, shield });
 
@@ -29,5 +29,18 @@ test('mcMyPlacementValue: 압도적으로 이긴 보드 마무리 → 높은 승
   s.me.lines[2] = [D(1), D(1)];
   s.opp.lines[2] = [D(1), D(1)]; // 양쪽 라인2에 각각 1칸 남음
   const wp = mcMyPlacementValue(s, 2, 3, 200, makeRng(9));
+  assert.ok(wp > 0.95, `expected >0.95, got ${wp}`);
+});
+
+test('mcBonusPlacementValue: 압도적 보드에서 보너스 실드 배치 후에도 높은 승률', () => {
+  const s = createState();
+  s.me.lines[0] = [D(6), D(6), D(6)];   // 30
+  s.opp.lines[0] = [D(1), D(1), D(1)];  // 5
+  s.me.lines[1] = [D(6), D(6), D(6)];   // 30
+  s.opp.lines[1] = [D(1), D(1), D(1)];  // 5
+  s.me.lines[2] = [D(1), D(1)];
+  s.opp.lines[2] = [D(1), D(1)];
+  // 내 라인2 빈칸에 실드 보너스(값5) 배치 → 두 라인 이미 승리라 승률 높아야 함
+  const wp = mcBonusPlacementValue(s, { side: 'me', lineIndex: 2 }, 5, 200, makeRng(11));
   assert.ok(wp > 0.95, `expected >0.95, got ${wp}`);
 });

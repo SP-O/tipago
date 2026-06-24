@@ -61,6 +61,7 @@ h1 {
 .solve-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px oklch(0 0 0 / 0.4); }
 .solve-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .result-card.best { text-align: center; padding: 10px 0 14px; }
+.result-error { color: var(--red); font-weight: 700; text-align: center; padding: 6px 0; }
 .rec-line { font-size: 1.15em; }
 .tag-alk { background: var(--gold); color: #000; border-radius: 6px; padding: 1px 8px; font-size: 0.75em; margin-left: 6px; font-weight: 700; }
 .tag-alk-sm { color: var(--gold); font-size: 0.8em; margin-left: 6px; }
