@@ -1,4 +1,5 @@
 import { lineSum } from './src/scoring.js';
+import { cellToDieIndex, nextFillCell } from './src/ui-layout.js';
 
 const { createApp, ref, reactive, computed, toRefs } = window.Vue;
 
@@ -23,67 +24,152 @@ function solveAsync(payload) {
 
 createApp({
   setup() {
-    // 고정 3칸 슬롯 모델: 각 라인을 [slot, slot, slot]로 두고 빈칸은 null
-    const emptyLines = () => [[null, null, null], [null, null, null], [null, null, null]];
-    const st = reactive({ me: emptyLines(), opp: emptyLines() });
+    // 각 라인은 packed 배열(빈 칸 없음): [{value, shield}, ...] (0 = 먼저 놓인 주사위)
+    const emptyBoard = () => [[], [], []];
+    const st = reactive({ me: emptyBoard(), opp: emptyBoard() });
 
     const die = ref(null);
     const ui = reactive({
-      selected: null,       // {side, li, si}
+      selected: null,    // { side, li, dieIndex } 기존 편집 | { side, li, isNew:true } 추가
       bonusMode: false,
       myMitjang: true,
       oppMitjang: false,
       solving: false,
       result: null,
+      solvedDie: null,   // 추천 계산 시점의 굴린 주사위(알까기 적용용)
     });
 
+    const history = reactive([]); // 보드 스냅샷 스택(되돌리기)
+
+    // ---- 히스토리 ----
+    function snapshot() {
+      return {
+        me: st.me.map((l) => l.map((d) => ({ value: d.value, shield: d.shield }))),
+        opp: st.opp.map((l) => l.map((d) => ({ value: d.value, shield: d.shield }))),
+      };
+    }
+    function pushHistory() {
+      history.push(snapshot());
+      if (history.length > 50) history.shift();
+      ui.result = null; // 보드가 바뀌면 이전 추천은 무효
+    }
+    const canUndo = computed(() => history.length > 0);
+    function undo() {
+      if (history.length === 0) return;
+      const snap = history.pop();
+      st.me = snap.me;
+      st.opp = snap.opp;
+      ui.selected = null;
+      ui.result = null;
+    }
+
     // ---- 슬롯 조작 ----
-    function selectSlot(side, li, si) {
-      ui.selected = { side, li, si };
+    function selectSlot(side, li, cell) {
+      const len = st[side][li].length;
+      const di = cellToDieIndex(side, len, cell);
+      if (di >= 0) {
+        ui.selected = { side, li, dieIndex: di };
+      } else if (len < 3) {
+        ui.selected = { side, li, isNew: true };
+      } else {
+        ui.selected = null;
+      }
     }
     function setSlotValue(n) {
       if (!ui.selected) return;
-      const { side, li, si } = ui.selected;
-      const cur = st[side][li][si];
-      st[side][li][si] = { value: n, shield: cur ? cur.shield : false };
+      const { side, li } = ui.selected;
+      pushHistory();
+      if (ui.selected.isNew) {
+        if (st[side][li].length < 3) {
+          st[side][li].push({ value: n, shield: false });
+          ui.selected = { side, li, dieIndex: st[side][li].length - 1 };
+        }
+      } else {
+        st[side][li][ui.selected.dieIndex].value = n;
+      }
     }
     function toggleSlotShield() {
-      if (!ui.selected) return;
-      const { side, li, si } = ui.selected;
-      const cur = st[side][li][si];
-      if (!cur) return;
-      st[side][li][si] = { value: cur.value, shield: !cur.shield };
+      if (!ui.selected || ui.selected.isNew) return;
+      const { side, li, dieIndex } = ui.selected;
+      const d = st[side][li][dieIndex];
+      if (!d) return;
+      pushHistory();
+      d.shield = !d.shield;
     }
     function clearSlot() {
       if (!ui.selected) return;
-      const { side, li, si } = ui.selected;
-      st[side][li][si] = null;
+      if (ui.selected.isNew) { ui.selected = null; return; }
+      const { side, li, dieIndex } = ui.selected;
+      pushHistory();
+      st[side][li].splice(dieIndex, 1); // packed → 자동으로 당겨짐
+      ui.selected = null;
+    }
+    function clearAll() {
+      pushHistory();
+      st.me = emptyBoard();
+      st.opp = emptyBoard();
+      ui.selected = null;
     }
 
     // ---- 표시 헬퍼 ----
     function lineArr(side, li) {
-      return st[side][li].filter((d) => d !== null).map((d) => ({ value: d.value, shield: d.shield }));
+      return st[side][li].map((d) => ({ value: d.value, shield: d.shield }));
     }
-    function sumOf(side, li) { return lineSum(lineArr(side, li)); }
-    function slotText(side, li, si) {
-      const d = st[side][li][si];
-      return d ? d.value : '·';
+    function sumOf(side, li) { return lineSum(st[side][li]); }
+    function sumClass(side, li) {
+      const a = lineSum(st.me[li]);
+      const b = lineSum(st.opp[li]);
+      const mine = side === 'me' ? a : b;
+      const other = side === 'me' ? b : a;
+      return mine > other ? 'win' : mine < other ? 'lose' : 'tie';
     }
-    function slotClass(side, li, si) {
-      const d = st[side][li][si];
-      const sel = ui.selected && ui.selected.side === side && ui.selected.li === li && ui.selected.si === si;
-      return { filled: !!d, shield: d && d.shield, selected: sel };
+    function slotText(side, li, cell) {
+      const di = cellToDieIndex(side, st[side][li].length, cell);
+      return di >= 0 ? st[side][li][di].value : '·';
     }
-    function recHighlight(side, li) {
-      if (!ui.result || !ui.result.best) return '0';
-      const t = ui.result.best.target;
-      return t.side === side && t.lineIndex === li ? '1' : '0';
+    function slotClass(side, li, cell) {
+      const len = st[side][li].length;
+      const di = cellToDieIndex(side, len, cell);
+      const filled = di >= 0;
+      let selected = false;
+      const sel = ui.selected;
+      if (sel && sel.side === side && sel.li === li) {
+        if (sel.isNew) selected = cell === nextFillCell(side, len);
+        else selected = di === sel.dieIndex;
+      }
+      return {
+        filled,
+        shield: filled && st[side][li][di].shield,
+        selected,
+      };
+    }
+    function rowRec(li) {
+      return !!(ui.result && ui.result.best && ui.result.best.target.lineIndex === li);
     }
     const selectedLabel = computed(() => {
-      if (!ui.selected) return '';
-      const { side, li, si } = ui.selected;
-      return `${side === 'me' ? '내' : '상대'} 라인 ${li + 1} · ${si + 1}번칸`;
+      const sel = ui.selected;
+      if (!sel) return '';
+      const sideKo = sel.side === 'me' ? '내' : '상대';
+      return sel.isNew
+        ? `${sideKo} 라인 ${sel.li + 1} (새 주사위)`
+        : `${sideKo} 라인 ${sel.li + 1}`;
     });
+
+    // ---- 알까기 적용 ----
+    const canApplyAlkkagi = computed(() => !!(ui.result && ui.result.best && ui.result.best.alkkagi));
+    const alkkagiLabel = computed(() => {
+      if (!canApplyAlkkagi.value) return '';
+      const L = ui.result.best.target.lineIndex + 1;
+      return `⚡ 알까기 적용 (상대 라인 ${L}에서 ${ui.solvedDie} 제거)`;
+    });
+    function applyAlkkagi() {
+      if (!canApplyAlkkagi.value) return;
+      const L = ui.result.best.target.lineIndex;
+      const v = ui.solvedDie;
+      pushHistory(); // ui.result는 여기서 무효화됨
+      st.opp[L] = st.opp[L].filter((d) => !(d.value === v && !d.shield));
+      ui.selected = null;
+    }
 
     // ---- 상태 → 엔진 state 변환 ----
     function buildEngineState() {
@@ -103,6 +189,7 @@ createApp({
       if (!die.value) return;
       ui.solving = true;
       ui.result = null;
+      ui.solvedDie = die.value;
       try {
         const state = buildEngineState();
         const result = await solveAsync({ state, die: die.value, opts: { isBonus: ui.bonusMode, seed: 1234567 } });
@@ -129,8 +216,10 @@ createApp({
       ...toRefs(st),
       die,
       ...toRefs(ui),
+      canUndo, undo, clearAll,
       selectSlot, setSlotValue, toggleSlotShield, clearSlot,
-      sumOf, slotText, slotClass, recHighlight, selectedLabel,
+      sumOf, sumClass, slotText, slotClass, rowRec, selectedLabel,
+      canApplyAlkkagi, alkkagiLabel, applyAlkkagi,
       solve, pct, targetLabel, winColor,
     };
   },

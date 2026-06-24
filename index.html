@@ -16,38 +16,39 @@
       <p class="subtitle">현재 판을 입력하면 이길 확률이 가장 높은 수를 알려드려요.</p>
 
       <div class="panel">
-        <div class="board board-opp">
-          <div class="board-title">상대 필드</div>
-          <div v-for="(line, li) in opp" :key="'o'+li" class="line-row">
-            <span class="line-label">라인 {{ li + 1 }}</span>
-            <div class="slots">
-              <button
-                v-for="si in 3" :key="si"
-                class="slot"
-                :class="slotClass('opp', li, si - 1)"
-                @click="selectSlot('opp', li, si - 1)">
-                {{ slotText('opp', li, si - 1) }}
-              </button>
-            </div>
-            <span class="line-sum">합 {{ sumOf('opp', li) }}</span>
-          </div>
+        <div class="board-toolbar">
+          <button class="tool-btn" :disabled="!canUndo" @click="undo()">↩️ 되돌리기</button>
+          <button class="tool-btn" @click="clearAll()">🗑️ 전체 비우기</button>
         </div>
-
-        <div class="board board-me">
-          <div class="board-title">내 필드</div>
-          <div v-for="(line, li) in me" :key="'m'+li" class="line-row">
-            <span class="line-label">라인 {{ li + 1 }}</span>
-            <div class="slots">
+        <div class="vs-head">
+          <span>내 필드</span>
+          <span>상대 필드</span>
+        </div>
+        <div class="board-scroll">
+          <div v-for="li in 3" :key="li" class="vs-row" :class="{ 'row-rec': rowRec(li - 1) }">
+            <span class="ln">라인 {{ li }}</span>
+            <div class="cells">
               <button
-                v-for="si in 3" :key="si"
+                v-for="c in 3" :key="'m'+c"
                 class="slot"
-                :class="slotClass('me', li, si - 1)"
-                @click="selectSlot('me', li, si - 1)"
-                :data-rec="recHighlight('me', li)">
-                {{ slotText('me', li, si - 1) }}
+                :class="slotClass('me', li - 1, c - 1)"
+                @click="selectSlot('me', li - 1, c - 1)">
+                {{ slotText('me', li - 1, c - 1) }}
               </button>
             </div>
-            <span class="line-sum">합 {{ sumOf('me', li) }}</span>
+            <span class="sum" :class="sumClass('me', li - 1)">{{ sumOf('me', li - 1) }}</span>
+            <span class="vs">:</span>
+            <span class="sum" :class="sumClass('opp', li - 1)">{{ sumOf('opp', li - 1) }}</span>
+            <div class="cells">
+              <button
+                v-for="c in 3" :key="'o'+c"
+                class="slot"
+                :class="slotClass('opp', li - 1, c - 1)"
+                @click="selectSlot('opp', li - 1, c - 1)">
+                {{ slotText('opp', li - 1, c - 1) }}
+              </button>
+            </div>
+            <span class="ln">라인 {{ li }}</span>
           </div>
         </div>
       </div>
@@ -94,6 +95,10 @@
             승률 {{ pct(result.best.winProb) }}
           </div>
         </div>
+
+        <button class="alkkagi-btn" v-if="canApplyAlkkagi" @click="applyAlkkagi()">
+          {{ alkkagiLabel }}
+        </button>
 
         <div class="mitjang-advice" v-if="result.mitjang">
           밑장빼기: 지금 그냥 두기 {{ pct(result.mitjang.baseWinProb) }}
