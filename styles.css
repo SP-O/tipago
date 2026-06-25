@@ -67,6 +67,7 @@ h1 {
 .input-section { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; transition: opacity 0.15s; }
 .input-section.roll-input { border-left: 3px solid var(--gold); }
 .input-section.inactive { opacity: 0.5; }
+.shield-hint { color: var(--gold); font-weight: 700; }
 .options-row { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 4px; }
 .chk { color: var(--muted); font-size: 0.9em; display: flex; align-items: center; gap: 6px; }
 .solve-btn {

@@ -57,7 +57,7 @@
 
       <div class="panel controls">
         <div class="input-section" :class="{ inactive: !selected }">
-          <div class="keypad-title">① 필드 입력 — <strong>{{ selected ? selectedLabel : '보드의 칸을 클릭하세요' }}</strong></div>
+          <div class="keypad-title">① 필드 입력 — <strong>{{ selected ? selectedLabel : '보드의 칸을 클릭하세요' }}</strong><span v-if="nextShield" class="shield-hint"> · 🛡 다음 주사위는 실드로</span></div>
           <div class="keypad">
             <button v-for="n in 6" :key="n" class="key" :disabled="!selected" @click="setSlotValue(n)">{{ n }}</button>
             <button class="key key-shield" :disabled="!selected || selectedIsNew" @click="toggleSlotShield()">실드</button>
@@ -77,7 +77,6 @@
 
         <div class="options-row">
           <label class="chk"><input type="checkbox" v-model="bonusMode" /> 보너스 주사위(실드·양쪽 배치)</label>
-          <label class="chk"><input type="checkbox" v-model="nextShield" /> 다음 주사위 실드(알까기 후 자동)</label>
           <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 밑장빼기 남음</label>
           <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 밑장빼기 사용</label>
           <label class="chk"><input type="checkbox" v-model="precise" /> 정밀 모드(느림·더 최적)</label>
