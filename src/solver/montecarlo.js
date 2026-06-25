@@ -1,17 +1,18 @@
 import { cloneState, boardFull } from '../state.js';
 import { gameResult, outcomeValue } from '../scoring.js';
 import { endTurn, placeDie, resolveAlkkagi, wouldTriggerAlkkagi } from '../rules.js';
-import { rollDie, greedyMove, greedyBonusPlace } from './evaluate.js';
+import { rollDie, greedyMove, greedyBonusPlace, aiOpponentMove } from './evaluate.js';
 
 const ROLLOUT_CAP = 40;
 
-export function rollout(state, rng) {
+// opts.realAI: 상대('opp') 턴은 실제 AI 흉내 정책으로 둠(실전 승률 반영).
+export function rollout(state, rng, opts = {}) {
   let s = cloneState(state);
   let depth = 0;
   while (!boardFull(s) && depth < ROLLOUT_CAP) {
     const player = s.turn;
     const r = rollDie(rng);
-    const move = greedyMove(s, r, rng);
+    const move = opts.realAI && player === 'opp' ? aiOpponentMove(s, r, rng) : greedyMove(s, r, rng);
     if (!move) break;
     if (move.alkkagi) {
       s = resolveAlkkagi(s, player, move.lineIndex, r);
@@ -26,28 +27,28 @@ export function rollout(state, rng) {
   return outcomeValue(gameResult(s));
 }
 
-export function montecarloValue(state, n, rng) {
+export function montecarloValue(state, n, rng, opts = {}) {
   let total = 0;
-  for (let k = 0; k < n; k++) total += rollout(state, rng);
+  for (let k = 0; k < n; k++) total += rollout(state, rng, opts);
   return total / n;
 }
 
-export function mcMyPlacementValue(state, lineIndex, value, n, rng) {
+export function mcMyPlacementValue(state, lineIndex, value, n, rng, opts = {}) {
   if (wouldTriggerAlkkagi(state, 'me', lineIndex, value)) {
     let total = 0;
     for (let k = 0; k < n; k++) {
       let s1 = resolveAlkkagi(state, 'me', lineIndex, value);
       const b = rollDie(rng);
       s1 = greedyBonusPlace(s1, 'me', b, rng);
-      total += rollout(endTurn(s1), rng);
+      total += rollout(endTurn(s1), rng, opts);
     }
     return total / n;
   }
   const s = endTurn(placeDie(state, 'me', lineIndex, { value, shield: false }));
-  return montecarloValue(s, n, rng);
+  return montecarloValue(s, n, rng, opts);
 }
 
-export function mcBonusPlacementValue(state, target, value, n, rng) {
+export function mcBonusPlacementValue(state, target, value, n, rng, opts = {}) {
   const s = endTurn(placeDie(state, target.side, target.lineIndex, { value, shield: true }));
-  return montecarloValue(s, n, rng);
+  return montecarloValue(s, n, rng, opts);
 }

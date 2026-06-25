@@ -84,6 +84,38 @@ export function greedyMove(state, value, rng) {
   return best;
 }
 
+// 실제 인게임 AI를 흉내낸 상대 정책(B-lite): 알까기 가능하면 우선(제거가치 큰 것),
+// 그다음 "2칸 라인 회피"(0/1칸 우선), 마지막으로 자기 점수 최대화 greedy.
+export function aiOpponentMove(state, value, rng) {
+  const player = state.turn;
+  const lines = legalLines(state, player);
+  if (lines.length === 0) return null;
+  const opp = player === 'me' ? 'opp' : 'me';
+
+  // 1) 알까기 우선
+  let bestAlk = -1;
+  let bestAlkVal = -1;
+  for (const L of lines) {
+    if (!wouldTriggerAlkkagi(state, player, L, value)) continue;
+    const c = state[opp].lines[L].filter((d) => d.value === value && !d.shield).length;
+    const removed = c === 1 ? value : c === 2 ? 3 * value : 5 * value;
+    if (removed > bestAlkVal) { bestAlkVal = removed; bestAlk = L; }
+  }
+  if (bestAlk >= 0) return { lineIndex: bestAlk, alkkagi: true };
+
+  // 2) 2칸 라인 회피 → 3) 그 중 자기 점수 최대
+  const pool = lines.filter((L) => state[player].lines[L].length < 2);
+  const cand = pool.length ? pool : lines;
+  let best = cand[0];
+  let bestScore = -Infinity;
+  for (const L of cand) {
+    const next = placeDie(state, player, L, { value, shield: false });
+    const sc = chooseScore(player, next) + rng() * 1e-6;
+    if (sc > bestScore) { bestScore = sc; best = L; }
+  }
+  return { lineIndex: best, alkkagi: false };
+}
+
 export function greedyBonusPlace(state, player, b, rng) {
   const targets = emptyTargets(state);
   if (targets.length === 0) return state;

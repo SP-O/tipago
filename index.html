@@ -80,6 +80,7 @@
           <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 밑장빼기 남음</label>
           <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 밑장빼기 사용</label>
           <label class="chk"><input type="checkbox" v-model="precise" /> 정밀 모드(느림·더 최적)</label>
+          <label class="chk"><input type="checkbox" v-model="realAI" /> 실제 AI 상대(실전 성향 반영)</label>
         </div>
 
         <button class="solve-btn" :disabled="!die || solving" @click="solve()">

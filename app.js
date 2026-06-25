@@ -39,6 +39,7 @@ createApp({
       result: null,
       solvedDie: null,   // 추천 계산 시점의 굴린 주사위(알까기 적용용)
       precise: false,    // 정밀 모드(느림·더 최적)
+      realAI: false,     // 실제 AI 상대 모드(실전 AI 성향 반영)
     });
 
     const history = reactive([]); // 보드 스냅샷 스택(되돌리기)
@@ -204,7 +205,7 @@ createApp({
       ui.solvedDie = die.value;
       try {
         const state = buildEngineState();
-        const result = await solveAsync({ state, die: die.value, opts: { isBonus: ui.bonusMode, seed: 1234567, precise: ui.precise } });
+        const result = await solveAsync({ state, die: die.value, opts: { isBonus: ui.bonusMode, seed: 1234567, precise: ui.precise, realAI: ui.realAI } });
         ui.result = result;
       } catch (err) {
         ui.result = { options: [], best: null, mitjang: null, _error: String(err.message) };
