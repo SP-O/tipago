@@ -26,23 +26,29 @@ function clamp(x, lo, hi) {
   return x < lo ? lo : x > hi ? hi : x;
 }
 
-function dupCount(line) {
-  // 같은 값(비실드)이 2개 이상인 주사위 개수 (0/2/3)
+function removableValue(line) {
+  // 한 번의 알까기로 제거 가능한 최대 점수 기여(비실드 같은 값 그룹).
+  // 더블6=18 > 더블3=9 > 단일6=6 = 더블2=6 > 단일3=3 ... (프로 우선순위 반영)
   const counts = {};
   for (const d of line) if (!d.shield) counts[d.value] = (counts[d.value] || 0) + 1;
-  let dup = 0;
-  for (const v in counts) if (counts[v] >= 2) dup += counts[v];
-  return dup;
+  let best = 0;
+  for (const v in counts) {
+    const c = counts[v];
+    const val = Number(v);
+    const contrib = c === 1 ? val : c === 2 ? 3 * val : 5 * val;
+    if (contrib > best) best = contrib;
+  }
+  return best;
 }
 
 export function lineWinProb(state, i) {
   const my = lineSum(state.me.lines[i]);
   const op = lineSum(state.opp.lines[i]);
   let margin = my - op;
-  // 상대 비실드 중복 → 내가 제거각 → 유리 가산
-  margin += dupCount(state.opp.lines[i]) * 1.5;
-  // 내 비실드 중복 → 상대가 제거각 → 불리 감산
-  margin -= dupCount(state.me.lines[i]) * 1.0;
+  // 상대에서 알까기로 뜯어낼 수 있는 가치(높을수록 유리) — 고점 더블/트리플일수록 큼
+  margin += removableValue(state.opp.lines[i]) * 0.25;
+  // 상대가 나에게서 뜯어낼 수 있는 가치(불리). 실드는 제외(못 뜯김)
+  margin -= removableValue(state.me.lines[i]) * 0.18;
   // 양쪽 라인 꽉 찼고 내가 뒤지면 굳어진 패배 → 추가 페널티
   if (state.me.lines[i].length === 3 && state.opp.lines[i].length === 3 && margin < 0) margin -= 2;
   return clamp(1 / (1 + Math.exp(-margin / HEUR_K)), 0.02, 0.98);

@@ -8,7 +8,7 @@ import {
 } from './exact.js';
 
 const EXACT_THRESHOLD = 4;
-const MC_ROLLOUTS = 400;
+const MC_ROLLOUTS = 700;
 // 밑장빼기는 게임당 1회뿐인 자원. 다시 굴리면 거의 항상 살짝 이득으로 보이므로,
 // 승률이 이 폭(4%p) 이상 분명히 오를 때만 권장한다(남발 방지).
 const MITJANG_MARGIN = 0.04;
