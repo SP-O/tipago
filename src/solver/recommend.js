@@ -2,27 +2,51 @@ import { remainingEmpty } from '../state.js';
 import { legalLines, emptyTargets, wouldTriggerAlkkagi, setMitjang } from '../rules.js';
 import { makeRng } from './evaluate.js';
 import { mcMyPlacementValue, mcBonusPlacementValue } from './montecarlo.js';
-import { exactMyPlacementValue, exactBonusPlacementValue, defaultBudget } from './exact.js';
+import {
+  exactMyPlacementValue, exactBonusPlacementValue, defaultBudget,
+  resetExactBudget, isExactBudgetError,
+} from './exact.js';
 
 const EXACT_THRESHOLD = 4;
 const MC_ROLLOUTS = 400;
-// 밑장빼기는 게임당 1회뿐인 자원. 다시 굴리면 더 나은 값을 고를 수 있어 거의 항상 살짝
-// 이득으로 보이므로, 승률이 이 폭(4%p) 이상 분명히 오를 때만 권장한다(남발 방지).
+// 밑장빼기는 게임당 1회뿐인 자원. 다시 굴리면 거의 항상 살짝 이득으로 보이므로,
+// 승률이 이 폭(4%p) 이상 분명히 오를 때만 권장한다(남발 방지).
 const MITJANG_MARGIN = 0.04;
 
 export function recommend(state, die, opts = {}) {
   const isBonus = !!opts.isBonus;
   const baseSeed = opts.seed ?? 1234567;
-  const exact = remainingEmpty(state) <= EXACT_THRESHOLD;
   const budget = defaultBudget(state);
+  let exact = remainingEmpty(state) <= EXACT_THRESHOLD;
 
-  // 후보마다 독립적인 시드를 줘서, 각 옵션의 MC 표본이 앞 옵션들의 후보 수에 영향받지 않게 한다.
+  let built;
+  try {
+    if (exact) resetExactBudget();
+    built = build(state, die, isBonus, exact, budget, baseSeed);
+  } catch (e) {
+    // 완전탐색이 작업량 상한 초과 → 몬테카를로로 폴백(무한로딩 방지)
+    if (exact && isExactBudgetError(e)) {
+      exact = false;
+      built = build(state, die, isBonus, false, budget, baseSeed);
+    } else {
+      throw e;
+    }
+  }
+
+  const { options, mitjang } = built;
+  const best = options[0] ?? null;
+  return { options, best, mitjang };
+}
+
+function build(state, die, isBonus, exact, budget, baseSeed) {
   const evalMy = (L) =>
-    exact ? exactMyPlacementValue(state, L, die, budget)
-          : mcMyPlacementValue(state, L, die, MC_ROLLOUTS, makeRng(baseSeed + 1 + L));
+    exact
+      ? exactMyPlacementValue(state, L, die, budget)
+      : mcMyPlacementValue(state, L, die, MC_ROLLOUTS, makeRng(baseSeed + 1 + L));
   const evalBonus = (t) =>
-    exact ? exactBonusPlacementValue(state, t, die, budget)
-          : mcBonusPlacementValue(state, t, die, MC_ROLLOUTS, makeRng(baseSeed + 20 + (t.side === 'opp' ? 3 : 0) + t.lineIndex));
+    exact
+      ? exactBonusPlacementValue(state, t, die, budget)
+      : mcBonusPlacementValue(state, t, die, MC_ROLLOUTS, makeRng(baseSeed + 20 + (t.side === 'opp' ? 3 : 0) + t.lineIndex));
 
   const options = [];
   if (isBonus) {
@@ -39,16 +63,14 @@ export function recommend(state, die, opts = {}) {
     }
   }
   options.sort((a, b) => b.winProb - a.winProb);
-  const best = options[0] ?? null;
 
   let mitjang = null;
-  if (!isBonus && state.me.hasMitjang && best) {
-    const baseWinProb = best.winProb;
+  if (!isBonus && state.me.hasMitjang && options[0]) {
+    const baseWinProb = options[0].winProb;
     const mitjangWinProb = mitjangValue(state, die, exact, budget, baseSeed);
     mitjang = { recommend: mitjangWinProb > baseWinProb + MITJANG_MARGIN, baseWinProb, mitjangWinProb };
   }
-
-  return { options, best, mitjang };
+  return { options, mitjang };
 }
 
 function bestMyValue(state, value, exact, budget, rng) {

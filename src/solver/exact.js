@@ -9,6 +9,14 @@ export function defaultBudget(state) {
   return Math.min(remainingEmpty(state) + 2, 14);
 }
 
+// 완전탐색 작업량 상한: 알까기(칸 되비움)+밑장빼기(×11 분기)가 겹치면 경우의 수가
+// 폭발하므로, 노드 수가 한도를 넘으면 중단(throw)하고 호출측이 몬테카를로로 폴백한다.
+let nodeCount = 0;
+const NODE_LIMIT = 200000;
+export function resetExactBudget() { nodeCount = 0; }
+class ExactBudgetError extends Error {}
+export function isExactBudgetError(e) { return e instanceof ExactBudgetError; }
+
 // 양쪽 라인이 모두 완성된 라인 결과를 바탕으로 이미 승부가 결정됐는지 확인
 function gameDecided(state) {
   let me = 0;
@@ -26,6 +34,7 @@ function gameDecided(state) {
 }
 
 export function searchValue(state, budget) {
+  if (++nodeCount > NODE_LIMIT) throw new ExactBudgetError('EXACT_BUDGET');
   if (boardFull(state)) return outcomeValue(gameResult(state));
   const decided = gameDecided(state);
   if (decided !== null) return decided;
