@@ -89,7 +89,7 @@
       <div class="panel result" v-if="result">
         <div class="result-error" v-if="result._error">⚠️ 계산 오류: {{ result._error }}</div>
         <div class="engine-badge" v-if="result.engine">
-          엔진: <strong>{{ result.engine === 'nn' ? '🧠 학습 모델' : '기본 솔버' }}</strong>
+          엔진: <strong>{{ result.engine === 'nn' ? '🧠 학습 모델(실험)' : '🧮 정밀 솔버' }}</strong>
         </div>
         <div class="result-card best" v-if="result.best">
           <div class="rec-line">
