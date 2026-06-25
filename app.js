@@ -40,6 +40,7 @@ createApp({
       solvedDie: null,   // 추천 계산 시점의 굴린 주사위(알까기 적용용)
       precise: false,    // 정밀 모드(느림·더 최적)
       realAI: false,     // 실제 AI 상대 모드(실전 AI 성향 반영)
+      nextShield: false, // 다음에 놓는 주사위를 실드로(알까기 보너스용, 1회 후 자동 해제)
     });
 
     const history = reactive([]); // 보드 스냅샷 스택(되돌리기)
@@ -84,14 +85,15 @@ createApp({
       pushHistory();
       if (ui.selected.isNew) {
         if (st[side][li].length < 3) {
-          // 판 초기화 후 처음 놓는 주사위 = 선공의 첫 주사위 → 자동 실드
-          const firstDie = isBoardEmpty();
-          st[side][li].push({ value: n, shield: firstDie });
-          ui.selected = { side, li, dieIndex: st[side][li].length - 1 };
+          // 선공 첫 주사위(빈 보드) 또는 알까기 보너스(nextShield) → 자동 실드
+          const shield = isBoardEmpty() || ui.nextShield;
+          st[side][li].push({ value: n, shield });
+          if (ui.nextShield) ui.nextShield = false; // 한 개 적용 후 자동 해제
         }
       } else {
         st[side][li][ui.selected.dieIndex].value = n;
       }
+      ui.selected = null; // 숫자 입력 후 선택 해제(상호작용 최소화, alt+tab 친화)
     }
     function toggleSlotShield() {
       if (!ui.selected || ui.selected.isNew) return;
@@ -167,6 +169,7 @@ createApp({
         ? `${sideKo} 라인 ${sel.li + 1} (새 주사위)`
         : `${sideKo} 라인 ${sel.li + 1}`;
     });
+    const selectedIsNew = computed(() => !!(ui.selected && ui.selected.isNew));
 
     // ---- 알까기 적용 ----
     const canApplyAlkkagi = computed(() => !!(ui.result && ui.result.best && ui.result.best.alkkagi));
@@ -182,6 +185,7 @@ createApp({
       pushHistory(); // ui.result는 여기서 무효화됨
       st.opp[L] = st.opp[L].filter((d) => !(d.value === v && !d.shield));
       ui.selected = null;
+      ui.nextShield = true; // 알까기 보너스 주사위는 실드 → 다음에 놓는 주사위 자동 실드
     }
 
     // ---- 상태 → 엔진 state 변환 ----
@@ -231,7 +235,7 @@ createApp({
       ...toRefs(ui),
       canUndo, undo, clearAll,
       selectSlot, setSlotValue, toggleSlotShield, clearSlot, clearSlotAt,
-      sumOf, sumClass, slotText, slotClass, rowRec, selectedLabel,
+      sumOf, sumClass, slotText, slotClass, rowRec, selectedLabel, selectedIsNew,
       canApplyAlkkagi, alkkagiLabel, applyAlkkagi,
       solve, pct, targetLabel, winColor,
     };

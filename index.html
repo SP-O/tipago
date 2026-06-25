@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>티카투카 어시스턴트 | 최적 수 추천</title>
+  <title>티파고 | 티카투카 최적 수 추천</title>
   <link rel="icon" href="data:;base64,iVBORw0KGgo=" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Outfit:wght@800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
@@ -12,8 +12,8 @@
 <body>
   <div id="app">
     <div class="container">
-      <h1>티카투카 어시스턴트</h1>
-      <p class="subtitle">현재 판을 입력하면 이길 확률이 가장 높은 수를 알려드려요.</p>
+      <h1>티파고</h1>
+      <p class="subtitle">티카투카에서 이길 확률이 가장 높은 수를 알려주는 도우미, 티파고.</p>
 
       <div class="panel">
         <div class="board-toolbar">
@@ -56,17 +56,17 @@
       </div>
 
       <div class="panel controls">
-        <div class="keypad-block" v-if="selected">
-          <div class="keypad-title">선택한 칸: {{ selectedLabel }}</div>
+        <div class="input-section" :class="{ inactive: !selected }">
+          <div class="keypad-title">① 필드 입력 — <strong>{{ selected ? selectedLabel : '보드의 칸을 클릭하세요' }}</strong></div>
           <div class="keypad">
-            <button v-for="n in 6" :key="n" class="key" @click="setSlotValue(n)">{{ n }}</button>
-            <button class="key key-shield" @click="toggleSlotShield()">실드</button>
-            <button class="key key-clear" @click="clearSlot()">비우기</button>
+            <button v-for="n in 6" :key="n" class="key" :disabled="!selected" @click="setSlotValue(n)">{{ n }}</button>
+            <button class="key key-shield" :disabled="!selected || selectedIsNew" @click="toggleSlotShield()">실드</button>
+            <button class="key key-clear" :disabled="!selected || selectedIsNew" @click="clearSlot()">비우기</button>
           </div>
         </div>
 
-        <div class="roll-block">
-          <div class="keypad-title">내가 굴린 주사위</div>
+        <div class="input-section roll-input">
+          <div class="keypad-title">② 내가 굴린 주사위</div>
           <div class="keypad">
             <button
               v-for="n in 6" :key="n"
@@ -77,10 +77,11 @@
 
         <div class="options-row">
           <label class="chk"><input type="checkbox" v-model="bonusMode" /> 보너스 주사위(실드·양쪽 배치)</label>
+          <label class="chk"><input type="checkbox" v-model="nextShield" /> 다음 주사위 실드(알까기 후 자동)</label>
           <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 밑장빼기 남음</label>
           <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 밑장빼기 사용</label>
           <label class="chk"><input type="checkbox" v-model="precise" /> 정밀 모드(느림·더 최적)</label>
-          <label class="chk"><input type="checkbox" v-model="realAI" /> 실제 AI 상대(실전 성향 반영)</label>
+          <label class="chk"><input type="checkbox" v-model="realAI" /> 별 3등급 이하 상대(무지성 알까기)</label>
         </div>
 
         <button class="solve-btn" :disabled="!die || solving" @click="solve()">
