@@ -79,6 +79,7 @@
           <label class="chk"><input type="checkbox" v-model="bonusMode" /> 보너스 주사위(실드·양쪽 배치)</label>
           <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 밑장빼기 남음</label>
           <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 밑장빼기 사용</label>
+          <label class="chk"><input type="checkbox" v-model="precise" /> 정밀 모드(느림·더 최적)</label>
         </div>
 
         <button class="solve-btn" :disabled="!die || solving" @click="solve()">
