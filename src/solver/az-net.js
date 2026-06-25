@@ -147,5 +147,71 @@ export function azApplyGrads(net, grads, lr) {
   net.body.forEach((layer, l) => applyLayer(layer, grads.body[l], lr));
 }
 
+// ---- Adam 옵티마이저(본 학습용) ----
+function zeroGrad(layer) {
+  return { dW: layer.W.map((r) => r.map(() => 0)), db: layer.b.map(() => 0) };
+}
+function addGradLayer(acc, g) {
+  for (let j = 0; j < acc.db.length; j++) {
+    acc.db[j] += g.db[j];
+    for (let i = 0; i < acc.dW[j].length; i++) acc.dW[j][i] += g.dW[j][i];
+  }
+}
+function layerAdamState(layer) {
+  return {
+    mW: layer.W.map((r) => r.map(() => 0)), vW: layer.W.map((r) => r.map(() => 0)),
+    mb: layer.b.map(() => 0), vb: layer.b.map(() => 0),
+  };
+}
+function adamLayer(layer, grad, st, n, lr, t, b1, b2, eps) {
+  for (let j = 0; j < layer.b.length; j++) {
+    const gb = grad.db[j] / n;
+    st.mb[j] = b1 * st.mb[j] + (1 - b1) * gb;
+    st.vb[j] = b2 * st.vb[j] + (1 - b2) * gb * gb;
+    layer.b[j] -= (lr * (st.mb[j] / (1 - b1 ** t))) / (Math.sqrt(st.vb[j] / (1 - b2 ** t)) + eps);
+    const Wj = layer.W[j];
+    const gWj = grad.dW[j];
+    for (let i = 0; i < Wj.length; i++) {
+      const gw = gWj[i] / n;
+      st.mW[j][i] = b1 * st.mW[j][i] + (1 - b1) * gw;
+      st.vW[j][i] = b2 * st.vW[j][i] + (1 - b2) * gw * gw;
+      Wj[i] -= (lr * (st.mW[j][i] / (1 - b1 ** t))) / (Math.sqrt(st.vW[j][i] / (1 - b2 ** t)) + eps);
+    }
+  }
+}
+
+export function azAdamInit(net) {
+  return {
+    t: 0,
+    body: net.body.map(layerAdamState),
+    valueHead: layerAdamState(net.valueHead),
+    policyHead: layerAdamState(net.policyHead),
+  };
+}
+
+// 배치 학습 1스텝(Adam). samples: [{x, v, pi, mask}]. 평균 손실 반환.
+export function azTrainBatch(net, samples, adam, opts = {}) {
+  const lr = opts.lr ?? 0.01;
+  const b1 = 0.9;
+  const b2 = 0.999;
+  const eps = 1e-8;
+  adam.t += 1;
+  const acc = { body: net.body.map(zeroGrad), valueHead: zeroGrad(net.valueHead), policyHead: zeroGrad(net.policyHead) };
+  let loss = 0;
+  for (const s of samples) {
+    const fwd = azForward(net, s.x);
+    loss += azLoss(fwd, s.v, s.pi, s.mask);
+    const g = azBackward(net, fwd, s.v, s.pi, s.mask);
+    addGradLayer(acc.valueHead, g.valueHead);
+    addGradLayer(acc.policyHead, g.policyHead);
+    for (let l = 0; l < net.body.length; l++) addGradLayer(acc.body[l], g.body[l]);
+  }
+  const n = samples.length;
+  adamLayer(net.valueHead, acc.valueHead, adam.valueHead, n, lr, adam.t, b1, b2, eps);
+  adamLayer(net.policyHead, acc.policyHead, adam.policyHead, n, lr, adam.t, b1, b2, eps);
+  net.body.forEach((layer, l) => adamLayer(layer, acc.body[l], adam.body[l], n, lr, adam.t, b1, b2, eps));
+  return loss / n;
+}
+
 export function serializeAz(net) { return JSON.stringify(net); }
 export function deserializeAz(json) { return typeof json === 'string' ? JSON.parse(json) : json; }

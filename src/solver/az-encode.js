@@ -23,15 +23,15 @@ export function targetToAction(side, lineIndex) {
   return (side === 'me' ? 0 : 3) + lineIndex;
 }
 
-// 합법 행동 마스크(길이 6). normal: 내 라인 빈칸만. bonus: 양쪽 빈칸.
-export function legalMask(state, phase) {
+// 합법 행동 마스크(길이 6). normal: mover의 라인 빈칸만. bonus: 양쪽 빈칸.
+export function legalMask(state, phase, mover = 'me') {
   const mask = [0, 0, 0, 0, 0, 0];
   if (phase === 'bonus') {
     for (const side of ['me', 'opp']) {
       for (let i = 0; i < 3; i++) if (state[side].lines[i].length < 3) mask[targetToAction(side, i)] = 1;
     }
   } else {
-    for (let i = 0; i < 3; i++) if (state.me.lines[i].length < 3) mask[targetToAction('me', i)] = 1;
+    for (let i = 0; i < 3; i++) if (state[mover].lines[i].length < 3) mask[targetToAction(mover, i)] = 1;
   }
   return mask;
 }

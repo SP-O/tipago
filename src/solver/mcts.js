@@ -25,7 +25,7 @@ function advanceToTurnStart(state) {
 // 결정노드에서 행동 a 적용 → 다음 상태(롤 대기) 또는 종료
 function applyAction(state, mover, phase, die, a) {
   if (phase === 'normal') {
-    const L = a; // 0..2 = 내 라인
+    const L = actionToTarget(a).lineIndex; // mover의 라인(a가 me면 0-2, opp면 3-5 → lineIndex 0-2)
     if (wouldTriggerAlkkagi(state, mover, L, die)) {
       const s1 = resolveAlkkagi(state, mover, L, die); // mover 유지
       if (emptyTargets(s1).length === 0) return advanceToTurnStart(endTurn(s1));
@@ -48,7 +48,7 @@ function createDecision(state, phase, die, mover) {
 
 function expand(net, node) {
   const fwd = azForward(net, azEncode(node.state, node.phase, node.die));
-  node.mask = legalMask(node.state, node.phase);
+  node.mask = legalMask(node.state, node.phase, node.mover);
   node.P = softmaxMasked(fwd.policyLogits, node.mask);
   node.value = fwd.value;
   node.N = 0;
@@ -118,10 +118,26 @@ export function visitPolicy(root) {
   return pol;
 }
 
+// 방문수^(1/temp)에 비례해 행동 샘플(legal만). temp→0이면 최다 방문 선택.
+export function sampleActionByVisits(root, temperature, rng) {
+  const legal = [];
+  for (let a = 0; a < NUM_ACTIONS; a++) if (root.mask[a]) legal.push(a);
+  if (temperature <= 1e-6) {
+    let best = legal[0];
+    for (const a of legal) if (root.edgeN[a] > root.edgeN[best]) best = a;
+    return best;
+  }
+  const ws = legal.map((a) => Math.pow(root.edgeN[a] + 1e-9, 1 / temperature));
+  const sum = ws.reduce((s, x) => s + x, 0) || 1;
+  let rr = rng() * sum;
+  for (let k = 0; k < legal.length; k++) { rr -= ws[k]; if (rr <= 0) return legal[k]; }
+  return legal[legal.length - 1];
+}
+
 export function mctsSearch(net, state, phase, die, opts = {}) {
   const sims = opts.sims ?? 200;
   const rng = opts.rng ?? makeRng(opts.seed ?? 12345);
-  const root = createDecision(state, phase, die, 'me');
+  const root = createDecision(state, phase, die, opts.mover ?? 'me');
   expand(net, root);
   if (opts.noiseEps) addExplorationNoise(root, opts.noiseEps);
   for (let i = 0; i < sims; i++) simulate(net, root, rng);
@@ -134,7 +150,7 @@ export function mctsSearch(net, state, phase, die, opts = {}) {
       target: actionToTarget(a),
       visits: n,
       winProb: n > 0 ? root.edgeW[a] / n : root.value,
-      alkkagi: phase === 'normal' && wouldTriggerAlkkagi(state, 'me', a, die),
+      alkkagi: phase === 'normal' && wouldTriggerAlkkagi(state, root.mover, actionToTarget(a).lineIndex, die),
     });
   }
   options.sort((x, y) => y.visits - x.visits);
