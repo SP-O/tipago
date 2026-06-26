@@ -89,6 +89,7 @@ createApp({
           const shield = isBoardEmpty() || ui.nextShield;
           st[side][li].push({ value: n, shield });
           if (ui.nextShield) ui.nextShield = false; // 한 개 적용 후 자동 해제
+          if (ui.bonusMode) ui.bonusMode = false;   // 보너스 주사위 놓은 뒤 일반 모드 복귀
         }
       } else {
         st[side][li][ui.selected.dieIndex].value = n;
@@ -186,6 +187,7 @@ createApp({
       st.opp[L] = st.opp[L].filter((d) => !(d.value === v && !d.shield));
       ui.selected = null;
       ui.nextShield = true; // 알까기 보너스 주사위는 실드 → 다음에 놓는 주사위 자동 실드
+      ui.bonusMode = true;  // 다음 계산은 보너스 주사위 배치(양쪽 후보) 추천
     }
 
     // ---- 상태 → 엔진 state 변환 ----
