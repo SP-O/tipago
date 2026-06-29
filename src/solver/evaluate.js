@@ -66,11 +66,19 @@ export function chooseScore(player, state) {
 
 export function greedyMove(state, value, rng) {
   const player = state.turn;
+  const opp = player === 'me' ? 'opp' : 'me';
   const lines = legalLines(state, player);
   if (lines.length === 0) return null;
+  // 자해 알까기: 이미 이기고 있는 줄을 알까기로 '열어주면' 상대가 빈 슬롯을 되채워
+  // 역전할 수 있다(잠긴 승리를 헌납하는 그리디 실수). 다른 둘 곳이 있으면 그런 알까기는 거른다.
+  const selfDefeating = (L) =>
+    wouldTriggerAlkkagi(state, player, L, value) &&
+    lineSum(state[player].lines[L]) > lineSum(state[opp].lines[L]);
+  let pool = lines.filter((L) => !selfDefeating(L));
+  if (pool.length === 0) pool = lines; // 모든 줄이 자해뿐이면 어쩔 수 없이 원래대로
   let best = null;
   let bestScore = -Infinity;
-  for (const L of lines) {
+  for (const L of pool) {
     const alkkagi = wouldTriggerAlkkagi(state, player, L, value);
     const next = alkkagi
       ? resolveAlkkagi(state, player, L, value)

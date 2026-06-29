@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lineSum, lineResult, gameResult, outcomeValue } from '../src/scoring.js';
+import { lineSum, lineResult, gameResult, outcomeValue, decidedResult } from '../src/scoring.js';
 
 const D = (value, shield = false) => ({ value, shield });
 
@@ -64,4 +64,32 @@ test('outcomeValue', () => {
   assert.equal(outcomeValue('me'), 1);
   assert.equal(outcomeValue('draw'), 0.5);
   assert.equal(outcomeValue('opp'), 0);
+});
+
+test('decidedResult: 상대 줄이 꽉 차고 내가 앞선 라인 2개면 me 확정(내 줄은 미완성이어도)', () => {
+  const s = {
+    me: { lines: [[D(6), D(3)], [D(4), D(5)], [D(1)]], hasMitjang: false },     // L1=9, L2=9
+    opp: { lines: [[D(1), D(2), D(1)], [D(4), D(3), D(2)], [D(2)]], hasMitjang: false }, // L1=5(full), L2=9(full)
+    turn: 'me',
+  };
+  // L1: opp full(5) & me 9>5 → 잠김. L2: opp full(9) & me 9>9? 아님(동점) → 미잠김.
+  assert.equal(decidedResult(s), null);
+  // L2에 4를 더해 17로 만들면 두 라인 잠김
+  s.me.lines[1] = [D(4), D(5), D(4)]; // 17
+  assert.equal(decidedResult(s), 'me');
+});
+
+test('decidedResult: 대칭(opp 확정) + 미결정은 null', () => {
+  const sOpp = {
+    me: { lines: [[D(1), D(1), D(1)], [D(2), D(2), D(2)], [D(6)]], hasMitjang: false },   // L1=3(full), L2=6(full)
+    opp: { lines: [[D(6), D(6)], [D(5), D(5)], [D(1)]], hasMitjang: false },              // L1=18>3, L2=15>6
+    turn: 'me',
+  };
+  assert.equal(decidedResult(sOpp), 'opp');
+  const sOpen = {
+    me: { lines: [[D(6)], [D(6)], [D(6)]], hasMitjang: false },
+    opp: { lines: [[D(1)], [D(1)], [D(1)]], hasMitjang: false }, // 아무 줄도 안 찼음
+    turn: 'me',
+  };
+  assert.equal(decidedResult(sOpen), null);
 });

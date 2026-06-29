@@ -1,5 +1,5 @@
 import { cloneState, boardFull } from '../state.js';
-import { gameResult, outcomeValue } from '../scoring.js';
+import { gameResult, outcomeValue, decidedResult } from '../scoring.js';
 import { endTurn, placeDie, resolveAlkkagi, wouldTriggerAlkkagi } from '../rules.js';
 import { rollDie, greedyMove, greedyBonusPlace, aiOpponentMove } from './evaluate.js';
 
@@ -10,6 +10,10 @@ export function rollout(state, rng, opts = {}) {
   let s = cloneState(state);
   let depth = 0;
   while (!boardFull(s) && depth < ROLLOUT_CAP) {
+    // 홀드: 2라인이 잠겨 승부가 이미 결정났으면 더 진행하지 않고 즉시 결과 반환.
+    // (그리디 정책이 잠긴 라인을 자해 알까기로 헌납하는 것을 방지)
+    const decided = decidedResult(s);
+    if (decided) return outcomeValue(decided);
     const player = s.turn;
     const r = rollDie(rng);
     const move = opts.realAI && player === 'opp' ? aiOpponentMove(s, r, rng) : greedyMove(s, r, rng);

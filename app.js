@@ -85,8 +85,8 @@ createApp({
       pushHistory();
       if (ui.selected.isNew) {
         if (st[side][li].length < 3) {
-          // 선공 첫 주사위(빈 보드) 또는 알까기 보너스(nextShield) → 자동 실드
-          const shield = isBoardEmpty() || ui.nextShield;
+          // 선공 첫 주사위(빈 보드)·알까기 보너스(nextShield)·보너스 주사위 모드 → 자동 실드
+          const shield = isBoardEmpty() || ui.nextShield || ui.bonusMode;
           st[side][li].push({ value: n, shield });
           if (ui.nextShield) ui.nextShield = false; // 한 개 적용 후 자동 해제
           if (ui.bonusMode) ui.bonusMode = false;   // 보너스 주사위 놓은 뒤 일반 모드 복귀

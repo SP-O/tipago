@@ -50,6 +50,19 @@ test('recommend: 밑장빼기 보유 시 조언 객체 반환', () => {
   assert.ok(r.mitjang.mitjangWinProb >= 0 && r.mitjang.mitjangWinProb <= 1);
 });
 
+test('recommend: 두 라인이 잠긴 확정승은 100%로 추천(홀드)', () => {
+  // 실제 사례. 내 L1 9 vs opp 5(꽉 참) → 홀드로 잠긴 승. die=4를 내 L2에 두면
+  // L2 17 vs 9(꽉 참)로 잠김 → 2라인 확보 → 무조건 승. realAI라 MC 경로를 타도 100%여야 함.
+  const s = createState({ oppHasMitjang: false });
+  s.me.hasMitjang = false;
+  s.me.lines = [[D(6), D(3, true)], [D(4), D(5)], [D(5), D(5)]];
+  s.opp.lines = [[D(1), D(2, true), D(1)], [D(4, true), D(3), D(2)], [D(4)]];
+  const r = recommend(s, 4, { realAI: true, seed: 7 });
+  assert.equal(r.best.target.side, 'me');
+  assert.equal(r.best.target.lineIndex, 1); // 내 라인 2
+  assert.equal(r.best.winProb, 1);
+});
+
 test('통합: 중반 빈 보드에서 추천이 항상 best를 낸다', () => {
   const s = createState();
   s.me.hasMitjang = false;

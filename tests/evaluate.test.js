@@ -49,3 +49,27 @@ test('greedyMove: 상대 중복 제거각(알까기)을 선택', () => {
   assert.equal(move.lineIndex, 0);
   assert.equal(move.alkkagi, true);
 });
+
+test('greedyMove: 이미 이기는 줄을 자해 알까기로 열지 않는다', () => {
+  // me L0=9로 이미 이기는 줄. opp L0=[1,1] 비실드 → 1을 내면 알까기 트리거되지만,
+  // 그 줄을 열면 상대가 빈칸을 되채워 역전 가능 → 알까기 대신 다른 곳에 둬야 함.
+  const s = {
+    me: { lines: [[D(6), D(3)], [], []], hasMitjang: false },
+    opp: { lines: [[D(1), D(1)], [], []], hasMitjang: false },
+    turn: 'me',
+  };
+  const mv = greedyMove(s, 1, makeRng(1));
+  assert.equal(mv.alkkagi, false);
+});
+
+test('greedyMove: 지는 줄은 여전히 알까기로 제거각을 살린다', () => {
+  // me L0=2로 지는 줄 → 알까기 허용(자해 아님).
+  const s = {
+    me: { lines: [[D(2)], [], []], hasMitjang: false },
+    opp: { lines: [[D(6), D(6)], [], []], hasMitjang: false },
+    turn: 'me',
+  };
+  const mv = greedyMove(s, 6, makeRng(1));
+  assert.equal(mv.alkkagi, true);
+  assert.equal(mv.lineIndex, 0);
+});
