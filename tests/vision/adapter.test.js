@@ -7,6 +7,7 @@ import { recognizeFrame } from '../../src/vision/recognize.js';
 import { loadPng } from './png.mjs';
 
 const FIX = join(dirname(fileURLToPath(import.meta.url)), '../../vision-fixtures');
+const R = (mlx, r1y) => ({ x: mlx - 96, y: r1y - 72, w: 979, h: 434 });
 const C = (value, shield = false, conf = 9) => ({ value, shield, conf });
 const E = { value: 0, shield: false, conf: 9 }; // 빈칸
 
@@ -55,4 +56,11 @@ test('toBoardState: NaN conf도 저신뢰로 취급(anyLowConf true)', () => {
     rolledDie: 0, isMyTurn: false, bonusMode: false, clipped: false,
   };
   assert.equal(toBoardState(rec).anyLowConf, true);
+});
+
+test('toBoardState(라이브 11/14): 정상 보드는 anyLowConf 아님(CONF_MIN 0.1)', () => {
+  for (const [n, rect] of [['11-live.png', R(885,653)], ['14-live.png', R(894,616)]]) {
+    const b = toBoardState(recognizeFrame(loadPng(join(FIX, n)), rect));
+    assert.equal(b.anyLowConf, false, `${n} anyLowConf`);
+  }
 });

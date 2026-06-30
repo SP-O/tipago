@@ -15,7 +15,7 @@ export function packLine(spatial, side) {
 export function toBoardState(rec) {
   const me = rec.cells.me.map((l) => packLine(l, 'me'));
   const opp = rec.cells.opp.map((l) => packLine(l, 'opp'));
-  const CONF_MIN = 2; // 초기 임계(스펙 §7), 실측 보정
+  const CONF_MIN = 0.1; // 초기 임계(스펙 §7), 실측 보정
   const lowConf = (r) => !(r.minConf >= CONF_MIN); // NaN/Infinity 안전: Infinity>=2=true→false, NaN>=2=false→true
   const info = (rs) => rs.map((r) => ({ lowConf: lowConf(r), impossible: r.impossible }));
   const meInfo = info(me), oppInfo = info(opp);

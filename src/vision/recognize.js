@@ -47,8 +47,8 @@ function isShield(frame, cx, cy, cellSize) {
     }
     return total > 0 ? edge / total : 0;
   }
-  const r1 = Math.round(cellSize * 0.5), r2 = Math.round(cellSize * 0.55);
-  return Math.max(ratioAt(r1), ratioAt(r2)) > 0.2;
+  const r1 = Math.round(cellSize * 0.5), r2 = Math.round(cellSize * 0.55), r3 = Math.round(cellSize * 0.6);
+  return Math.max(ratioAt(r1), ratioAt(r2), ratioAt(r3)) > 0.2;
 }
 
 // ---- SSD between two Float32Arrays -------------------------------------
