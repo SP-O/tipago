@@ -19,13 +19,17 @@
         <div class="board-toolbar">
           <button class="tool-btn" :disabled="!canUndo" @click="undo()">↩️ 되돌리기</button>
           <button class="tool-btn" @click="clearAll()">🗑️ 전체 비우기</button>
+          <button class="tool-btn" v-if="!scan.connected" @click="scanConnect()">🖥️ 화면 연결</button>
+          <button class="tool-btn scan-go" v-else :disabled="scan.busy" @click="scanNow()">📷 스캔</button>
+          <button class="tool-btn" v-if="scan.connected" @click="scanDisconnect()">⛔ 연결 끊기</button>
+          <span class="scan-status" v-if="scan.status">{{ scan.status }}</span>
         </div>
         <div class="vs-head">
           <span>내 필드</span>
           <span>상대 필드</span>
         </div>
         <div class="board-scroll">
-          <div v-for="li in 3" :key="li" class="vs-row" :class="{ 'row-rec': rowRec(li - 1) }">
+          <div v-for="li in 3" :key="li" class="vs-row" :class="{ 'row-rec': rowRec(li - 1), 'scan-warn': scanRowWarn(li - 1) }">
             <span class="ln">라인 {{ li }}</span>
             <div class="cells">
               <button

@@ -96,3 +96,7 @@ h1 {
   .vs-row { gap: 5px; }
   .cells { gap: 4px; }
 }
+/* 화면 인식 */
+.scan-status { font-size: 0.85rem; color: var(--muted, #9aa); margin-left: 0.5rem; }
+.tool-btn.scan-go { border-color: var(--gold, #c9a227); }
+.vs-row.scan-warn { outline: 2px solid #e6c200; outline-offset: 2px; border-radius: 6px; }

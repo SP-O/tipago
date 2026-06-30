@@ -1,5 +1,7 @@
 import { lineSum } from './src/scoring.js';
 import { cellToDieIndex, nextFillCell } from './src/ui-layout.js';
+import { connect as captureConnect, grabFrame as captureGrabFrame, disconnect as captureDisconnect, isBlackFrame } from './src/vision/capture.js';
+import { boardStateToSt, scanGate } from './src/vision/st-writer.js';
 
 const { createApp, ref, reactive, computed, toRefs } = window.Vue;
 
@@ -220,6 +222,62 @@ createApp({
       }
     }
 
+    // ---- 화면 인식(스냅샷 + Tier1) ----
+    const visionWorker = new Worker(new URL('./src/vision/vision-worker.js', import.meta.url), { type: 'module' });
+    const scan = reactive({ connected: false, busy: false, status: '', lastMs: null, flags: null });
+    let captureHandle = null;
+
+    visionWorker.onmessage = (e) => {
+      const { board, ms } = e.data;
+      scan.lastMs = Math.round(ms);
+      scan.busy = false;
+      applyScan(board);
+    };
+
+    async function scanConnect() {
+      try {
+        captureHandle = await captureConnect();
+        scan.connected = true;
+        scan.status = '연결됨 — 내 턴에 [스캔]을 누르세요';
+      } catch (err) {
+        scan.status = '화면 연결 취소/실패';
+      }
+    }
+    function scanDisconnect() {
+      if (captureHandle) captureDisconnect(captureHandle);
+      captureHandle = null;
+      scan.connected = false; scan.status = ''; scan.flags = null;
+    }
+    function scanNow() {
+      if (!scan.connected || scan.busy) return;
+      let frame;
+      try { frame = captureGrabFrame(captureHandle); }
+      catch (err) { scan.status = '프레임 캡처 실패 — 다시 연결해 주세요'; scan.connected = false; return; }
+      if (isBlackFrame(frame)) { scan.status = '검은 화면 — 전체화면 독점이면 테두리없는 창모드로 바꿔주세요'; return; }
+      scan.busy = true; scan.status = '인식 중...';
+      visionWorker.postMessage({ buffer: frame.data.buffer, width: frame.width, height: frame.height }, [frame.data.buffer]);
+    }
+    function applyScan(board) {
+      const gate = scanGate(board);
+      scan.flags = gate;
+      if (!gate.isMyTurn) { scan.status = '내 턴이 아니에요(굴린 주사위가 없습니다)'; return; }
+      const mapped = boardStateToSt(board);
+      pushHistory();
+      st.me = mapped.me;
+      st.opp = mapped.opp;
+      die.value = mapped.die || null;
+      ui.bonusMode = mapped.bonusMode;
+      ui.selected = null;
+      if (gate.ok) { scan.status = `인식 완료(${scan.lastMs}ms) — 계산합니다`; solve(); }
+      else { scan.status = `인식했지만 확인 필요(${gate.reasons.join(', ')}) — 노란 라인을 확인·수정 후 [추천] 하세요`; }
+    }
+    function scanRowWarn(li) {
+      const f = scan.flags;
+      if (!f || !f.lines) return false;
+      const m = f.lines.me[li], o = f.lines.opp[li];
+      return !!((m && (m.lowConf || m.impossible)) || (o && (o.lowConf || o.impossible)));
+    }
+
     // ---- 포맷 ----
     function pct(p) { return `${Math.round(p * 100)}%`; }
     function targetLabel(t) {
@@ -240,6 +298,7 @@ createApp({
       sumOf, sumClass, slotText, slotClass, rowRec, selectedLabel, selectedIsNew,
       canApplyAlkkagi, alkkagiLabel, applyAlkkagi,
       solve, pct, targetLabel, winColor,
+      scan, scanConnect, scanDisconnect, scanNow, scanRowWarn,
     };
   },
 }).mount('#app');
