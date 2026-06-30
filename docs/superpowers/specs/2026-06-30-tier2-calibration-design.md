@@ -4,17 +4,21 @@
 선행: Plan 2(스냅샷+Tier1)는 브랜치 `feat/screen-recognition-ui`에 구현 완료(7태스크, 109 테스트, opus MERGE-READY)됐으나 **실브라우저 스모크에서 Tier1 자동앵커가 실패**. 이 문서는 그 원인을 해결하는 보정 증분이다.
 
 ## 0. 배경 — 진단 결과 (이 설계의 근거)
-실제 `getDisplayMedia` 캡처(`vision-fixtures/10-live-capture.png`, 2560×1440)로 검증한 사실:
-- 회원이 예전 제공한 학습 픽스처(01·02…)는 **실제 화면공유 캡처와 다르게 프레임**돼 있었다 → baked 앵커/레이아웃 기준이 비대표적.
-- 라이브 캡처에서 앵커 일치도 perPixel≈22(나쁨; 02는 0)로 **false match**(scale 0.6, y 510). 보드를 못 잡아 홀딩박스가 어두운 곳을 봐 `isMyTurn=false`.
-- **그러나 실제 보드는 거의 scale 1.0**, 위치만 오프셋(~−33,+50). 주사위 ~78px ≈ baked TPL 70px.
-- **검증 완료(스파이크):** 올바른 boardRect `{x:791,y:581,w:979,h:434}`를 `computeLayout`에 주면 → `isMyTurn=true`, 내 L1=4, 상대 L2=4 정확. 굴린 주사위는 정확한 중심(708,800)에서 **value=6, conf 0.95**.
+실제 `getDisplayMedia` 캡처 **5장**(`vision-fixtures/10-live-capture.png`, `11~14-live.png`, 2560×1440, gitignore)으로 검증. 사용자가 5장 전부 칸 정답 제공.
 
-**결론:** 인식 코어·기존 템플릿은 정상. 망가진 것은 **자동 위치찾기(앵커)뿐**. 사용자가 boardRect만 정확히 지정하면 기존 템플릿으로 동작한다. ⇒ **per-user 템플릿 재제작 불필요**(부모 스펙의 우려 해소).
+**(a) 자동 위치찾기(앵커) 실패** — 옛 학습 픽스처(01·02…)가 실제 화면공유 캡처와 다르게 프레임돼 있어, baked 앵커가 라이브에서 false match(perPixel≈22). ⇒ 보드 위치는 **사용자 박스 보정**으로 잡아야 함.
+
+**(b) 실측 격자는 일관·baked와 동일 비율** — 5장 측정: 열간격 129·행간격 145·필드간격 269 = baked와 동일. 단 **홀딩박스가 칸에서 181px**(baked 156, 25px 차), **주사위 타일 ~80px**(baked 셀크기 상수 96). 창은 프레임마다 위치만 다름(드래그).
+
+**(c) 블롭 검출이 위치 견고** — 각 칸/홀딩 영역에서 밝은 ~80px 타일의 bbox 중심을 찾으면 **69개 주사위 전부 정확 검출**. ⇒ 박스 보정이 픽셀단위로 완벽하지 않아도(±반칸) 견고하고, 빈칸은 블롭없음으로 판정.
+
+**(d) 기존 템플릿(02 박제)은 계통오류** — 실캡처에서 값을 1 낮게 읽음(3→2, 4→3, 5→4). 02가 80px가 아닌 비대표 렌더라서. **해결 검증됨:** 실캡처 5장+정답으로 템플릿 재제작 → **leave-one-out 교차검증 95.7%(66/69)**, 잔여 오류 5→4 3건뿐.
+
+**결론:** 인식 코어 로직은 정상이나, **(1) 위치=박스 보정 (2) 검출=블롭 (3) 값=실캡처 템플릿 재제작** 세 가지가 함께 필요. per-user 템플릿 부트스트랩은 96%↑·타해상도용 **향후**(§9).
 
 ## 1. 목표 / 범위
-- **수동 박스 보정**으로 boardRect를 1회 확정·저장 → 이후 스캔은 저장 rect 재사용. 회원 해상도에서 스냅샷 인식이 실제로 동작하게 만든다.
-- **솔버/엔진/인식 코어 불변.** Plan 2 파이프라인(`capture→worker→recognize→toBoardState→scanGate→applyScan`) 재사용; `findAnchor`가 주던 boardRect만 보정 rect로 대체.
+- **수동 박스 보정**으로 boardRect를 1회 확정·저장 + **블롭검출 인식** + **실캡처 재제작 템플릿** → 회원 해상도에서 스냅샷 인식이 ~96%로 동작.
+- **솔버/엔진/입력 UI·자동적용 정책 불변.** Plan 2 파이프라인(`capture→worker→recognize→toBoardState→scanGate→applyScan`) 재사용. 변경 지점: `findAnchor`→보정 rect, `recognize`의 칸/홀딩 분류를 블롭검출 기반으로, 템플릿 재제작. `toBoardState`/`scanGate`/`applyScan` 인터페이스 불변.
 
 ### 1.1 북극성(최종 목표)과의 관계
 사용자 최종 목표: **화면 공유 버튼 하나 → 현재 필드 자동 스캔·배치 → 내 턴에 주사위 굴리면 자동 계산·추천**(무조작 연속 자동).
@@ -59,20 +63,23 @@
 ```
 - 저장은 **단일 rect**(+ 보정 당시 capW×capH). 다음 연결의 캡처 dims가 다르면(해상도/창크기 변경) **경고 + 재보정 권유**(자동 사용 안 함).
 
-## 4. 모듈 변경 (작은 추가, 하위호환)
+## 4. 모듈 변경
 | 모듈 | 변경 |
 |---|---|
-| `src/vision/recognize.js` | `recognizeFrame(frame, boardRect = null)` — `boardRect` 주면 `findAnchor`/`anchorToBoardRect` 생략하고 직접 사용. **기본 null = 기존 동작 불변**(Plan 2 테스트 유지). |
+| `src/vision/blob.js` (신규·순수) | `findDieBlob(gray, cx, cy, half, opts) -> {cx,cy}\|null` — (cx,cy)±half 영역에서 임계(≈165) 이상 밝은 4-연결 최대 블롭의 bbox 중심. die-크기(55~110px, 정사각 근사) 아니면 null. 빈칸=null. (검증된 알고리즘.) |
+| `src/vision/recognize.js` | (1) `recognizeFrame(frame, boardRect = null)` — `boardRect` 주면 `findAnchor`/`anchorToBoardRect` 생략(기본 null=기존 동작 불변). (2) **칸·홀딩 분류를 블롭검출 기반으로**: 각 칸은 `findDieBlob`로 주사위 중심을 찾아 그 중심에서 템플릿 분류, 블롭없음=빈칸. 홀딩도 영역내 블롭 검출 → `isMyTurn`/`rolledDie`. (고정점 샘플링 대체.) |
 | `src/vision/vision-worker.js` | 메시지에서 선택적 `boardRect` 받아 `recognizeFrame(frame, boardRect)`로 전달. |
-| `src/vision/layout.js` | **홀딩박스 분수 미세튜닝** — 진단의 23px 어긋남(굴린주사위 오인식 원인) 보정. `holdMine`/`holdOpp` 분수를 라이브 캡처(708,800) + 02 양쪽에서 검증. (값은 추정치였음 — 부모 코어 forward concern.) |
-| `src/vision/calibration.js` (신규·순수) | 보정 기하만 담당(**오버레이 점은 기존 `computeLayout(rect)` 재사용 — 재구현 금지**): `handlesOf(rect) -> [{id,x,y}]`(4모서리+4변 핸들), `hitTest(pt, rect, tol) -> handleId\|'inside'\|null`, `applyDrag(rect, target, dx, dy) -> rect'`(target='inside'면 이동, 핸들이면 리사이즈; 최소 크기 클램프), `toFrameRect(displayRect, scale)`/`toDisplayRect(frameRect, scale)`(표시↔프레임 좌표 환산). **DOM 없음**. 오버레이 렌더는 app 측에서 `computeLayout(rect)`의 cells/holdMine/holdOpp 점을 그린다. |
-| `app.js`/`index.html`/`styles.css` | 보정 패널(캔버스 + 오버레이 + 핸들 + 새로고침/확인/취소), localStorage load/save, worker에 boardRect 전달. **UI 정리(§2.1)**: 스캔 버튼 4개 → 화면공유 토글 + 스캔 + 재보정으로 축소, 디버그 버튼 제거, 옵션 4개 `⚙️ 옵션` 접이식(기본 접힘, 펼침상태 localStorage). 기존 옵션 v-model/솔버 불변. |
+| `src/vision/layout.js` | 셀크기 상수 **96→80**(실드 링·클립 판정용; 분류는 TPL_SIZE 70 무관). 홀딩박스 위치는 영역검색(±half)으로 견고하므로 분수는 대략값 유지(블롭이 흡수). |
+| `src/vision/build-templates.mjs` + `templates-data.js` | **실캡처 5장 + 정답 라벨로 템플릿 재제작.** 빌드 스크립트가 `10~14-live.png`에서 라벨된 칸/홀딩의 블롭중심 패치를 모아 값별 평균 → `templates-data.js` 교체. 라벨은 스크립트에 상수로 기입(§0(d), 메모리 기록값). LOO 95.7% 재현 확인. |
+| `src/vision/calibration.js` (신규·순수) | 보정 기하만 담당(**오버레이 점은 `computeLayout(rect)` 재사용**): `handlesOf(rect) -> [{id,x,y}]`(4모서리+4변), `hitTest(pt, rect, tol) -> id\|'inside'\|null`, `applyDrag(rect, target, dx, dy) -> rect'`(이동/리사이즈; 최소크기 클램프), `toFrameRect`/`toDisplayRect`(표시↔프레임 환산). DOM 없음. |
+| `app.js`/`index.html`/`styles.css` | 보정 패널(캔버스+오버레이+핸들+새로고침/확인/취소), localStorage load/save, worker에 boardRect 전달. **UI 정리(§2.1)**. 기존 옵션 v-model/솔버 불변. |
 
-`recognize.js`가 boardRect를 받을 때 `clipped`/`inBounds` 판정은 기존대로 유지.
+`recognize.js`가 boardRect를 받을 때 `clipped`/`inBounds` 판정은 기존대로 유지. 블롭검출은 칸 사각형이 프레임 내일 때만 시도(밖이면 clipped).
 
-## 5. 보정 정확도 & 굴린 주사위
-- 진단상 boardRect만 맞으면 칸 값은 정확(내·상대 라인 conf 0.2~0.3). 굴린 주사위는 홀딩박스 분수 튜닝(§4 layout.js) 후 정확(conf 0.95 @ 정확중심).
-- 보정 점이 주사위 중심에서 다소 빗나가도, 칸은 빈칸 밝기/템플릿으로 견고; 다만 **정확히 얹을수록 conf↑**. 오버레이 실시간 피드백으로 사용자가 정렬.
+## 5. 인식 정확도
+- **위치**: 블롭검출이 ±반칸 오차를 흡수 → 보정이 픽셀단위로 완벽하지 않아도 됨.
+- **값**: 실캡처 재제작 템플릿으로 LOO 95.7%. 잔여 오류는 5↔4(가장 닮은 쌍).
+- 잔여 ~4%·5↔4는 `scanGate` 저신뢰 표시 + 기존 수동수정으로 흡수(Plan 2 그대로). 완전 자동(무수정)은 per-user 부트스트랩 등 향후(§9).
 
 ## 6. 에러 / 엣지
 - 저장 rect 없음 → 첫 스캔 전 보정 강제(안내).
@@ -81,19 +88,22 @@
 - 검은 프레임/권한거부/스트림종료 → Plan 2 처리 그대로.
 
 ## 7. 테스트
-- **`calibration.js`(순수) → `node --test`**: `applyDrag`(이동/리사이즈/최소크기 클램프), `hitTest`(핸들/내부/바깥), `handlesOf`(rect→8핸들 좌표), `toFrameRect`/`toDisplayRect` 좌표 환산 왕복. (오버레이 점 자체는 `computeLayout`이 이미 테스트됨.)
-- **`recognize.js` boardRect 경로 → `node --test`**: `10-live-capture.png`에 `recognizeFrame(img, {x:791,y:581,w:979,h:434})` → `isMyTurn=true`, 내 L1 packed=[4], 상대 L2 packed=[4], (홀딩분수 튜닝 후) `rolledDie=6`. **boardRect=null이면 기존 동작 불변**(회귀).
-- **`layout.js` 홀딩분수 튜닝 → `node --test`**: 02에서 `holdMine` 밝기>120 유지 + 라이브에서 홀딩 중심이 (708±a, 800±a)에 들어 `rolledDie=6`.
-- 보정 패널(캔버스/드래그/저장) = **실브라우저 수동**. 수동 검증 시 **인식 ms 기록**(연속 루프 타당성 근거).
-- 빌드 게이트: 기존 전체 스위트 + 신규 전부 그린(fail 0). 픽스처는 로컬 전용(.gitignore); `10-live-capture.png` 포함.
+- **`blob.js`(순수) → `node --test`**: 라이브 프레임에서 알려진 주사위 중심 ±오차 위치로 `findDieBlob` 호출 → 실제 주사위 중심(±몇 px) 반환; 빈 영역 → null.
+- **`recognize.js` 정확도 → `node --test`**: 5장 라이브(`10~14-live.png`)를 각 프레임 boardRect로 `recognizeFrame` → 사용자 정답과 대조해 **칸 정확도 ≥ 90%**(목표 ~96%) 단언, 그리고 프레임10은 전칸 정확(roll6/내L1=4/상대L2=4). `boardRect=null`이면 기존 동작 불변(회귀). 프레임별 boardRect·정답은 테스트에 상수로 기입(메모리 기록값).
+- **`templates.test.js`(갱신)**: 재제작 TEMPLATES 0~6 존재·구별. 1(씨앗)≠2 등.
+- **`calibration.js`(순수)**: `applyDrag`/`hitTest`/`handlesOf`/`toFrameRect`·`toDisplayRect` 왕복.
+- 보정 패널(캔버스/드래그/저장)·워커 = **실브라우저 수동**. 수동 검증 시 **인식 ms 기록**(연속 루프 GO/NO-GO).
+- 빌드 게이트: 기존 전체 스위트 + 신규 전부 그린(fail 0). 픽스처 로컬 전용(.gitignore); `10~14-live.png`. **주의**: V6 등 기존 02-기반 값 테스트는 재제작 템플릿으로 값이 바뀔 수 있음 → 라이브 기반 테스트로 갱신/대체(02는 비대표).
 
 ## 8. 빌드 순서(리스크 우선)
-1. `layout.js` 홀딩박스 분수 튜닝 + 테스트(02·라이브) — 굴린주사위 정확도 확정.
-2. `recognize.js` `boardRect` 인자(하위호환) + 라이브 캡처 테스트 — **인식이 보정 rect로 된다는 계약 확정**.
-3. `vision-worker.js` boardRect 전달.
-4. `calibration.js`(순수 기하) + 테스트.
-5. `app.js`/`index.html`/`styles.css` 보정 패널·저장·재보정 결선 + **UI 정리(§2.1: 공유 토글/스캔/재보정 축소, 디버그 제거, 옵션 접이식)** — 실브라우저 수동(인식 ms 측정).
+1. `blob.js`(순수 블롭검출) + 테스트 — 검출 토대.
+2. `build-templates.mjs` 재제작 + `templates-data.js` 교체 + `templates.test.js` 갱신 — **값 정확도 확정**(핵심 리스크).
+3. `layout.js` 셀크기 80.
+4. `recognize.js` `boardRect` 인자 + 블롭검출 분류 + **5장 라이브 정확도 테스트(≥90%)** — 인식이 보정 rect+재제작 템플릿으로 동작 확정.
+5. `vision-worker.js` boardRect 전달.
+6. `calibration.js`(순수 기하) + 테스트.
+7. `app.js`/`index.html`/`styles.css` 보정 패널·저장·재보정 결선 + **UI 정리(§2.1)** — 실브라우저 수동(인식 ms 측정).
 
 ## 9. 범위 밖 / 향후 (북극성)
 - **연속 자동 루프**(다음 증분): 보정 rect 위에서 화면을 주기적으로 보다가 ① 내 턴(홀딩박스 주사위) 감지 → 자동 스캔·배치 ② 굴린 주사위 인식 → 자동 계산·추천. = "버튼 하나 → 전부 자동". 본 증분의 ms 측정으로 GO/NO-GO.
-- 창 이동 자동추적(사용자 랜드마크 매칭). per-user 템플릿(불필요 확인됨). 다른 해상도 자동감지.
+- 창 이동 자동추적(사용자 랜드마크 매칭). **per-user 템플릿 부트스트랩**(수정→템플릿 학습): 96%↑ 및 **타 해상도 대응**(재제작 템플릿은 ~80px 스케일 특화라 다른 해상도에선 부정확 가능 → 부트스트랩 또는 패치 스케일정규화 필요). 다른 해상도 자동감지.
