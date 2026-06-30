@@ -2,7 +2,7 @@
 // Pipeline: anchor → layout → classify cells → turn / bonusMode / clipped
 // Imports: image.js, anchor.js, landmark-data.js, layout.js, templates-data.js, blob.js
 
-import { toGray, normPatch, meanGray } from './image.js';
+import { toGray, normPatch } from './image.js';
 import { findAnchor } from './anchor.js';
 import { LANDMARK } from './landmark-data.js';
 import { anchorToBoardRect, computeLayout } from './layout.js';

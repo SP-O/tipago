@@ -2,10 +2,10 @@ import { lineSum } from './src/scoring.js';
 import { cellToDieIndex, nextFillCell } from './src/ui-layout.js';
 import { connect as captureConnect, grabFrame as captureGrabFrame, disconnect as captureDisconnect, isBlackFrame } from './src/vision/capture.js';
 import { boardStateToSt, scanGate } from './src/vision/st-writer.js';
-import { handlesOf, hitTest, applyDrag, toFrameRect, toDisplayRect } from './src/vision/calibration.js';
+import { handlesOf, hitTest, applyDrag, toDisplayRect } from './src/vision/calibration.js';
 import { computeLayout } from './src/vision/layout.js';
 
-const { createApp, ref, reactive, computed, toRefs } = window.Vue;
+const { createApp, ref, reactive, computed, toRefs, nextTick } = window.Vue;
 
 const worker = new Worker(new URL('./src/solver/worker.js', import.meta.url), { type: 'module' });
 let msgId = 0;
@@ -264,7 +264,7 @@ createApp({
       cal.rect = savedRect ? { x: savedRect.x, y: savedRect.y, w: savedRect.w, h: savedRect.h }
                            : { x: frame.width * 0.31, y: frame.height * 0.40, w: 979, h: 434 };
       cal.open = true;
-      renderCalibration();
+      nextTick(() => renderCalibration());
     }
     function confirmCalibration() {
       savedRect = { ...cal.rect, capW: cal.frame.width, capH: cal.frame.height };
