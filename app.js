@@ -2,6 +2,8 @@ import { lineSum } from './src/scoring.js';
 import { cellToDieIndex, nextFillCell } from './src/ui-layout.js';
 import { connect as captureConnect, grabFrame as captureGrabFrame, disconnect as captureDisconnect, isBlackFrame } from './src/vision/capture.js';
 import { boardStateToSt, scanGate } from './src/vision/st-writer.js';
+import { handlesOf, hitTest, applyDrag, toFrameRect, toDisplayRect } from './src/vision/calibration.js';
+import { computeLayout } from './src/vision/layout.js';
 
 const { createApp, ref, reactive, computed, toRefs } = window.Vue;
 
@@ -222,10 +224,15 @@ createApp({
       }
     }
 
-    // ---- 화면 인식(스냅샷 + Tier1) ----
+    // ---- 화면 인식(스냅샷 + Tier2) ----
     const visionWorker = new Worker(new URL('./src/vision/vision-worker.js', import.meta.url), { type: 'module' });
     const scan = reactive({ connected: false, busy: false, status: '', lastMs: null, flags: null });
     let captureHandle = null;
+
+    const REC_KEY = 'tikatuka.boardRect';
+    const cal = reactive({ open: false, rect: null, frame: null, scale: 1, dispW: 0, dispH: 0, dragging: null, last: null });
+    function loadSavedRect() { try { return JSON.parse(localStorage.getItem(REC_KEY)); } catch { return null; } }
+    let savedRect = loadSavedRect();
 
     visionWorker.onmessage = (e) => {
       const { board, ms } = e.data;
@@ -238,11 +245,35 @@ createApp({
       try {
         captureHandle = await captureConnect();
         scan.connected = true;
-        scan.status = '연결됨 — 내 턴에 [스캔]을 누르세요';
-      } catch (err) {
-        scan.status = '화면 연결 취소/실패';
-      }
+        const frame = captureGrabFrame(captureHandle);
+        if (savedRect && savedRect.capW === frame.width && savedRect.capH === frame.height) {
+          scan.status = '연결됨 — [스캔]을 누르세요';
+        } else {
+          if (savedRect) scan.status = '해상도/창이 달라졌어요 — 보정이 필요합니다';
+          openCalibration(frame);
+        }
+      } catch (err) { scan.status = '화면 연결 취소/실패'; }
     }
+    function recalibrate() {
+      if (!scan.connected) return;
+      try { openCalibration(captureGrabFrame(captureHandle)); }
+      catch { scan.status = '프레임 캡처 실패 — 다시 연결'; scan.connected = false; }
+    }
+    function openCalibration(frame) {
+      cal.frame = frame;
+      cal.rect = savedRect ? { x: savedRect.x, y: savedRect.y, w: savedRect.w, h: savedRect.h }
+                           : { x: frame.width * 0.31, y: frame.height * 0.40, w: 979, h: 434 };
+      cal.open = true;
+      renderCalibration();
+    }
+    function confirmCalibration() {
+      savedRect = { ...cal.rect, capW: cal.frame.width, capH: cal.frame.height };
+      localStorage.setItem(REC_KEY, JSON.stringify(savedRect));
+      cal.open = false; cal.frame = null;
+      scan.status = '보정 완료 — [스캔]을 누르세요';
+    }
+    function cancelCalibration() { cal.open = false; cal.frame = null; }
+
     function scanDisconnect() {
       if (captureHandle) captureDisconnect(captureHandle);
       captureHandle = null;
@@ -250,13 +281,51 @@ createApp({
     }
     function scanNow() {
       if (!scan.connected || scan.busy) return;
+      if (!savedRect) { scan.status = '먼저 보정하세요'; recalibrate(); return; }
       let frame;
       try { frame = captureGrabFrame(captureHandle); }
-      catch (err) { scan.status = '프레임 캡처 실패 — 다시 연결해 주세요'; scan.connected = false; return; }
-      if (isBlackFrame(frame)) { scan.status = '검은 화면 — 전체화면 독점이면 테두리없는 창모드로 바꿔주세요'; return; }
+      catch (err) { scan.status = '프레임 캡처 실패 — 다시 연결'; scan.connected = false; return; }
+      if (isBlackFrame(frame)) { scan.status = '검은 화면 — 테두리없는 창모드로'; return; }
       scan.busy = true; scan.status = '인식 중...';
-      visionWorker.postMessage({ buffer: frame.data.buffer, width: frame.width, height: frame.height }, [frame.data.buffer]);
+      const boardRect = { x: savedRect.x, y: savedRect.y, w: savedRect.w, h: savedRect.h };
+      visionWorker.postMessage({ buffer: frame.data.buffer, width: frame.width, height: frame.height, boardRect }, [frame.data.buffer]);
     }
+
+    function renderCalibration() {
+      const cv = document.getElementById('calCanvas'); if (!cv || !cal.frame) return;
+      const maxW = Math.min(900, window.innerWidth - 80);
+      cal.scale = maxW / cal.frame.width;
+      cal.dispW = Math.round(cal.frame.width * cal.scale);
+      cal.dispH = Math.round(cal.frame.height * cal.scale);
+      cv.width = cal.dispW; cv.height = cal.dispH;
+      const ctx = cv.getContext('2d');
+      const tmp = document.createElement('canvas'); tmp.width = cal.frame.width; tmp.height = cal.frame.height;
+      tmp.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(cal.frame.data), cal.frame.width, cal.frame.height), 0, 0);
+      ctx.drawImage(tmp, 0, 0, cal.dispW, cal.dispH);
+      const L = computeLayout(cal.rect);
+      ctx.fillStyle = '#00e0ff';
+      const dot = (px, py) => { ctx.beginPath(); ctx.arc(px * cal.scale, py * cal.scale, 4, 0, 7); ctx.fill(); };
+      for (const side of ['me', 'opp']) for (const line of L.cells[side]) for (const c of line) dot(c.cx, c.cy);
+      ctx.fillStyle = '#ffd000'; dot(L.holdMine.cx, L.holdMine.cy); dot(L.holdOpp.cx, L.holdOpp.cy);
+      const d = toDisplayRect(cal.rect, cal.scale);
+      ctx.strokeStyle = '#ffd000'; ctx.lineWidth = 2; ctx.strokeRect(d.x, d.y, d.w, d.h);
+      ctx.fillStyle = '#ffd000'; for (const hnd of handlesOf(d)) { ctx.fillRect(hnd.x - 5, hnd.y - 5, 10, 10); }
+    }
+    function calPointerDown(ev) {
+      const cv = ev.currentTarget, r = cv.getBoundingClientRect();
+      const pt = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+      const d = toDisplayRect(cal.rect, cal.scale);
+      cal.dragging = hitTest(pt, d, 9); cal.last = pt;
+    }
+    function calPointerMove(ev) {
+      if (!cal.dragging) return;
+      const cv = ev.currentTarget, r = cv.getBoundingClientRect();
+      const pt = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+      const ddx = (pt.x - cal.last.x) / cal.scale, ddy = (pt.y - cal.last.y) / cal.scale;
+      cal.rect = applyDrag(cal.rect, cal.dragging, ddx, ddy);
+      cal.last = pt; renderCalibration();
+    }
+    function calPointerUp() { cal.dragging = null; }
     function applyScan(board) {
       const gate = scanGate(board);
       scan.flags = gate;
@@ -298,7 +367,8 @@ createApp({
       sumOf, sumClass, slotText, slotClass, rowRec, selectedLabel, selectedIsNew,
       canApplyAlkkagi, alkkagiLabel, applyAlkkagi,
       solve, pct, targetLabel, winColor,
-      scan, scanConnect, scanDisconnect, scanNow, scanRowWarn,
+      scan, scanConnect, scanDisconnect, scanNow, scanRowWarn, recalibrate,
+      cal, confirmCalibration, cancelCalibration, calPointerDown, calPointerMove, calPointerUp,
     };
   },
 }).mount('#app');
