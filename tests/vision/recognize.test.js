@@ -33,3 +33,9 @@ test('recognizeFrame(02): 모든 칸 conf 숫자', () => {
   const flat = [...r.cells.me, ...r.cells.opp].flat().filter(Boolean);
   assert.ok(flat.every((c) => typeof c.conf === 'number'));
 });
+
+test('recognizeFrame: 작은/이상 프레임에도 isMyTurn=false (NaN 안전)', () => {
+  const frame = { data: new Uint8ClampedArray(50 * 50 * 4).fill(100), width: 50, height: 50 };
+  const r = recognizeFrame(frame);
+  assert.equal(r.isMyTurn, false);
+});

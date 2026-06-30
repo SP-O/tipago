@@ -127,6 +127,11 @@ function isCellClipped(cx, cy, cellSize, width, height) {
   );
 }
 
+// Check if a sampling window (center ± half) is completely within frame bounds
+function inFrameWindow(cx, cy, half, w, h) {
+  return cx - half >= 0 && cy - half >= 0 && cx + half < w && cy + half < h;
+}
+
 // ---- main export -------------------------------------------------------
 
 /**
@@ -161,9 +166,10 @@ export function recognizeFrame(frame) {
   const meCells = processSide(L.cells.me);
   const oppCells = processSide(L.cells.opp);
 
-  // Turn detection via left holding box brightness
-  const holdBrightness = meanGray(gray, L.holdMine.cx, L.holdMine.cy, 14);
-  const isMyTurn = holdBrightness > 120;
+  // Turn detection via left holding box brightness (clip-guarded: out-of-frame → not my turn)
+  const HOLD_HALF = 14;
+  const holdInFrame = inFrameWindow(L.holdMine.cx, L.holdMine.cy, HOLD_HALF, gray.width, gray.height);
+  const isMyTurn = holdInFrame && meanGray(gray, L.holdMine.cx, L.holdMine.cy, HOLD_HALF) > 120;
   let rolledDie = 0;
   if (isMyTurn) {
     rolledDie = classifyCell(gray, L.holdMine.cx, L.holdMine.cy).value;
