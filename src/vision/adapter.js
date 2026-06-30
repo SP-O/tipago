@@ -16,10 +16,14 @@ export function toBoardState(rec) {
   const me = rec.cells.me.map((l) => packLine(l, 'me'));
   const opp = rec.cells.opp.map((l) => packLine(l, 'opp'));
   const CONF_MIN = 2; // 초기 임계(스펙 §7), 실측 보정
+  const lowConf = (r) => !(r.minConf >= CONF_MIN); // NaN/Infinity 안전: Infinity>=2=true→false, NaN>=2=false→true
+  const info = (rs) => rs.map((r) => ({ lowConf: lowConf(r), impossible: r.impossible }));
+  const meInfo = info(me), oppInfo = info(opp);
   return {
     me: me.map((r) => r.line), opp: opp.map((r) => r.line),
     rolledDie: rec.rolledDie, isMyTurn: rec.isMyTurn, bonusMode: rec.bonusMode, clipped: rec.clipped,
-    anyImpossible: [...me, ...opp].some((r) => r.impossible),
-    anyLowConf: [...me, ...opp].some((r) => r.minConf < CONF_MIN),
+    anyImpossible: [...meInfo, ...oppInfo].some((l) => l.impossible),
+    anyLowConf: [...meInfo, ...oppInfo].some((l) => l.lowConf),
+    lines: { me: meInfo, opp: oppInfo },
   };
 }
