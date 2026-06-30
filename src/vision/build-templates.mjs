@@ -2,7 +2,6 @@
 // 픽스처에서 주사위 면 템플릿(회색조 정규화 70x70)을 추출해 templates-data.js로 출력.
 // 실행: node src/vision/build-templates.mjs
 
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { writeFileSync } from 'node:fs';
