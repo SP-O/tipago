@@ -43,3 +43,22 @@ test('recognizeFrame(null): 앵커 경로 동작 유지(02)', () => {
   const r = recognizeFrame(loadPng(join(FIX, '02-midgame-shields.png')));
   assert.equal(typeof r.isMyTurn, 'boolean'); // 앵커 경로가 throw 없이 돈다
 });
+
+test('recognizeFrame: 쉴드(색 테두리) 검출 - 라이브 11/14', () => {
+  // 공간 좌→우 쉴드 정답(색비율 진단 기반). true=쉴드.
+  const SH = {
+    '11-live.png': { r: R(885,653), me: [[1,0,0],[0,0,0],[0,0,0]], opp: [[1,0,0],[0,1,0],[0,0,0]] },
+    '14-live.png': { r: R(894,616), me: [[1,0,0],[0,0,1],[0,0,1]], opp: [[0,0,1],[1,0,0],[0,1,1]] },
+  };
+  let correct = 0, total = 0;
+  for (const [name, gt] of Object.entries(SH)) {
+    const rr = recognizeFrame(loadPng(join(FIX, name)), gt.r);
+    for (const side of ['me','opp']) for (let li=0; li<3; li++) for (let ci=0; ci<3; ci++) {
+      const cell = rr.cells[side][li][ci];
+      if (!cell || cell.value === 0) continue; // 빈칸 제외
+      total++;
+      if (!!cell.shield === !!gt[side][li][ci]) correct++;
+    }
+  }
+  assert.ok(correct / total >= 0.9, `쉴드 정확도 ${correct}/${total}`);
+});

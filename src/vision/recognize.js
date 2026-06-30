@@ -30,24 +30,25 @@ function isWhite(frame, x, y) {
 }
 
 // ---- shield detection ---------------------------------------------------
-// Sample border ring at ~cellSize*0.45 from the centre
+// Sample border ring at ~cellSize*0.5 and cellSize*0.55 from the centre (40-44px at cellSize=80)
 
 function isShield(frame, cx, cy, cellSize) {
-  const r = Math.round(cellSize * 0.45);
-  let edge = 0, total = 0;
-  // top and bottom edges
-  for (let x = cx - r; x <= cx + r; x += 2) {
-    if (x < 0 || x >= frame.width) continue;
-    if (cy - r >= 0 && cy - r < frame.height) { total++; if (isRed(frame, x, cy - r) || isGreen(frame, x, cy - r)) edge++; }
-    if (cy + r >= 0 && cy + r < frame.height) { total++; if (isRed(frame, x, cy + r) || isGreen(frame, x, cy + r)) edge++; }
+  function ratioAt(r) {
+    let edge = 0, total = 0;
+    for (let x = cx - r; x <= cx + r; x += 2) {
+      if (x < 0 || x >= frame.width) continue;
+      if (cy - r >= 0 && cy - r < frame.height) { total++; if (isRed(frame, x, cy - r) || isGreen(frame, x, cy - r)) edge++; }
+      if (cy + r >= 0 && cy + r < frame.height) { total++; if (isRed(frame, x, cy + r) || isGreen(frame, x, cy + r)) edge++; }
+    }
+    for (let y = cy - r; y <= cy + r; y += 2) {
+      if (y < 0 || y >= frame.height) continue;
+      if (cx - r >= 0 && cx - r < frame.width) { total++; if (isRed(frame, cx - r, y) || isGreen(frame, cx - r, y)) edge++; }
+      if (cx + r >= 0 && cx + r < frame.width) { total++; if (isRed(frame, cx + r, y) || isGreen(frame, cx + r, y)) edge++; }
+    }
+    return total > 0 ? edge / total : 0;
   }
-  // left and right edges
-  for (let y = cy - r; y <= cy + r; y += 2) {
-    if (y < 0 || y >= frame.height) continue;
-    if (cx - r >= 0 && cx - r < frame.width) { total++; if (isRed(frame, cx - r, y) || isGreen(frame, cx - r, y)) edge++; }
-    if (cx + r >= 0 && cx + r < frame.width) { total++; if (isRed(frame, cx + r, y) || isGreen(frame, cx + r, y)) edge++; }
-  }
-  return total > 0 && (edge / total) > 0.25;
+  const r1 = Math.round(cellSize * 0.5), r2 = Math.round(cellSize * 0.55);
+  return Math.max(ratioAt(r1), ratioAt(r2)) > 0.2;
 }
 
 // ---- SSD between two Float32Arrays -------------------------------------
