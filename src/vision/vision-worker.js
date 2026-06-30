@@ -3,10 +3,10 @@ import { recognizeFrame } from './recognize.js';
 import { toBoardState } from './adapter.js';
 
 self.onmessage = (e) => {
-  const { buffer, width, height } = e.data;
+  const { buffer, width, height, boardRect } = e.data;
   const frame = { data: new Uint8ClampedArray(buffer), width, height };
   const now = () => (self.performance && self.performance.now ? self.performance.now() : Date.now());
   const t0 = now();
-  const board = toBoardState(recognizeFrame(frame));
+  const board = toBoardState(recognizeFrame(frame, boardRect || null));
   self.postMessage({ board, ms: now() - t0 });
 };
