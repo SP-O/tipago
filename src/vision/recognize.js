@@ -1,12 +1,13 @@
 // src/vision/recognize.js
 // Pipeline: anchor → layout → classify cells → turn / bonusMode / clipped
-// Imports: image.js, anchor.js, landmark-data.js, layout.js, templates-data.js
+// Imports: image.js, anchor.js, landmark-data.js, layout.js, templates-data.js, blob.js
 
 import { toGray, normPatch, meanGray } from './image.js';
 import { findAnchor } from './anchor.js';
 import { LANDMARK } from './landmark-data.js';
 import { anchorToBoardRect, computeLayout } from './layout.js';
 import { TEMPLATES, TPL_SIZE } from './templates-data.js';
+import { findDieBlob } from './blob.js';
 
 // ---- colour helpers (use raw RGBA frame) --------------------------------
 
@@ -72,13 +73,6 @@ function classifyByTemplate(gray, cx, cy) {
   return { value: bestVal, conf };
 }
 
-// Classify a single cell (including empty check)
-function classifyCell(gray, cx, cy) {
-  const mg = meanGray(gray, cx, cy, 14);
-  if (mg < 120) return { value: 0, conf: Infinity };
-  return classifyByTemplate(gray, cx, cy);
-}
-
 // ---- bonusMode heuristic ------------------------------------------------
 // Check if any opponent line has a white-pixel band (high white ratio) around cells
 
@@ -137,13 +131,13 @@ function inFrameWindow(cx, cy, half, w, h) {
 /**
  * Recognize board state from a raw RGBA frame.
  * @param {{ width:number, height:number, data:Uint8Array }} frame
+ * @param {{ x:number, y:number, w:number, h:number }|null} boardRect
  * @returns {{ cells:{me:Array, opp:Array}, rolledDie:number, isMyTurn:boolean, bonusMode:boolean, clipped:boolean }}
  */
-export function recognizeFrame(frame) {
+export function recognizeFrame(frame, boardRect = null) {
   const gray = toGray(frame);
-  const anchor = findAnchor(gray, LANDMARK);
-  const boardRect = anchorToBoardRect(anchor);
-  const L = computeLayout(boardRect);
+  const rect = boardRect || anchorToBoardRect(findAnchor(gray, LANDMARK));
+  const L = computeLayout(rect);
   const cs = L.cellSize;
 
   let clipped = false;
@@ -152,12 +146,11 @@ export function recognizeFrame(frame) {
   function processSide(sideCells) {
     return sideCells.map(row =>
       row.map(({ cx, cy }) => {
-        if (isCellClipped(cx, cy, cs, gray.width, gray.height)) {
-          clipped = true;
-          return null;
-        }
-        const { value, conf } = classifyCell(gray, cx, cy);
-        const shield = value > 0 ? isShield(frame, cx, cy, cs) : false;
+        if (isCellClipped(cx, cy, cs, gray.width, gray.height)) { clipped = true; return null; }
+        const b = findDieBlob(gray, cx, cy, 48);
+        if (!b) return { value: 0, shield: false, conf: Infinity }; // 빈칸
+        const { value, conf } = classifyByTemplate(gray, b.cx, b.cy);
+        const shield = isShield(frame, b.cx, b.cy, cs);
         return { value, shield, conf };
       })
     );
@@ -166,13 +159,12 @@ export function recognizeFrame(frame) {
   const meCells = processSide(L.cells.me);
   const oppCells = processSide(L.cells.opp);
 
-  // Turn detection via left holding box brightness (clip-guarded: out-of-frame → not my turn)
-  const HOLD_HALF = 14;
-  const holdInFrame = inFrameWindow(L.holdMine.cx, L.holdMine.cy, HOLD_HALF, gray.width, gray.height);
-  const isMyTurn = holdInFrame && meanGray(gray, L.holdMine.cx, L.holdMine.cy, HOLD_HALF) > 120;
-  let rolledDie = 0;
-  if (isMyTurn) {
-    rolledDie = classifyCell(gray, L.holdMine.cx, L.holdMine.cy).value;
+  // Turn detection via holding blob detection (clip-guarded: out-of-frame → not my turn)
+  const HOLD_HALF = 70;
+  let isMyTurn = false, rolledDie = 0;
+  if (inFrameWindow(L.holdMine.cx, L.holdMine.cy, HOLD_HALF, gray.width, gray.height)) {
+    const hb = findDieBlob(gray, L.holdMine.cx, L.holdMine.cy, HOLD_HALF);
+    if (hb) { isMyTurn = true; rolledDie = classifyByTemplate(gray, hb.cx, hb.cy).value; }
   }
 
   // bonusMode heuristic: white border band around opponent cells

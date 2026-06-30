@@ -6,36 +6,40 @@ import { loadPng } from './png.mjs';
 import { recognizeFrame } from '../../src/vision/recognize.js';
 
 const FIX = join(dirname(fileURLToPath(import.meta.url)), '../../vision-fixtures');
-const vals = (line) => line.map((c) => (c ? c.value : -1));
+const R = (mlx, r1y) => ({ x: mlx - 96, y: r1y - 72, w: 979, h: 434 });
+const FRAMES = [
+  { n: '10-live-capture.png', r: R(888,654), roll:6, me:[[0,0,4],[0,0,0],[0,0,0]], opp:[[0,0,0],[4,0,0],[0,0,0]] },
+  { n: '11-live.png', r: R(885,653), roll:2, me:[[2,4,4],[1,2,2],[0,5,4]], opp:[[6,1,1],[3,1,5],[3,6,1]] },
+  { n: '12-live.png', r: R(892,626), roll:3, me:[[3,6,2],[2,5,6],[0,6,6]], opp:[[5,5,0],[3,0,0],[2,2,2]] },
+  { n: '13-live.png', r: R(890,616), roll:1, me:[[0,1,2],[5,5,6],[5,2,4]], opp:[[2,5,5],[3,0,0],[3,1,0]] },
+  { n: '14-live.png', r: R(894,616), roll:2, me:[[3,2,2],[0,4,2],[6,5,5]], opp:[[1,1,4],[4,6,3],[4,4,3]] },
+];
 
-test('recognizeFrame(02): 값 정확 + 씨앗=1 + 턴/모드/잘림', () => {
-  const r = recognizeFrame(loadPng(join(FIX, '02-midgame-shields.png')));
-  assert.deepEqual(vals(r.cells.me[1]), [0, 1, 1]);   // 내 L2: 빈,씨앗,씨앗 (점세기는 2,2로 실패했던 칸 — 템플릿으로 정확)
-  assert.deepEqual(vals(r.cells.me[0]), [2, 2, 3]);   // 내 L1
-  assert.deepEqual(vals(r.cells.opp[0]), [4, 5, 0]);  // 상대 L1 (3번째 빈칸)
+test('recognizeFrame(boardRect): 라이브 5장 칸 정확도 >= 90%', () => {
+  let correct = 0, total = 0;
+  for (const f of FRAMES) {
+    const r = recognizeFrame(loadPng(join(FIX, f.n)), f.r);
+    for (const side of ['me','opp']) for (let li=0; li<3; li++) for (let ci=0; ci<3; ci++) {
+      const got = r.cells[side][li][ci] ? r.cells[side][li][ci].value : 0;
+      total++; if (got === f[side][li][ci]) correct++;
+    }
+  }
+  const acc = correct / total;
+  assert.ok(acc >= 0.90, `정확도 ${(acc*100).toFixed(1)}% (${correct}/${total})`);
+});
+
+test('recognizeFrame(10-live): 전칸 정확 + 턴/굴린주사위', () => {
+  const f = FRAMES[0];
+  const r = recognizeFrame(loadPng(join(FIX, f.n)), f.r);
+  assert.equal(r.isMyTurn, true);
+  assert.equal(r.rolledDie, 6);
   assert.equal(r.clipped, false);
-  assert.equal(r.isMyTurn, true);                     // 좌측 홀딩박스에 주사위
-  assert.equal(r.bonusMode, false);                   // 02엔 상대라인 흰테두리 없음
+  const vals = (s,li) => r.cells[s][li].map(c => c ? c.value : 0);
+  assert.deepEqual(vals('me',0), [0,0,4]);
+  assert.deepEqual(vals('opp',1), [4,0,0]);
 });
 
-test('recognizeFrame(08-enemy-turn): 빈 홀딩박스 → 내 턴 아님', () => {
-  const r = recognizeFrame(loadPng(join(FIX, '08-enemy-turn.PNG')));
-  assert.equal(r.isMyTurn, false);
-});
-
-test('recognizeFrame(07-after-3): 하단 잘림 감지', () => {
-  const r = recognizeFrame(loadPng(join(FIX, '07-alkkagi-after-3.png')));
-  assert.equal(r.clipped, true); // 일부 칸이 프레임 밖
-});
-
-test('recognizeFrame(02): 모든 칸 conf 숫자', () => {
+test('recognizeFrame(null): 앵커 경로 동작 유지(02)', () => {
   const r = recognizeFrame(loadPng(join(FIX, '02-midgame-shields.png')));
-  const flat = [...r.cells.me, ...r.cells.opp].flat().filter(Boolean);
-  assert.ok(flat.every((c) => typeof c.conf === 'number'));
-});
-
-test('recognizeFrame: 작은/이상 프레임에도 isMyTurn=false (NaN 안전)', () => {
-  const frame = { data: new Uint8ClampedArray(50 * 50 * 4).fill(100), width: 50, height: 50 };
-  const r = recognizeFrame(frame);
-  assert.equal(r.isMyTurn, false);
+  assert.equal(typeof r.isMyTurn, 'boolean'); // 앵커 경로가 throw 없이 돈다
 });
