@@ -30,6 +30,21 @@
   - **확인** → rect 저장·패널 닫기. **취소** → 변경 폐기.
 - 좌표계: 보정은 **표시 좌표**로 조작하되 저장·인식은 **프레임 픽셀 좌표**로 환산(표시배율 역산). 따라서 캔버스 표시 크기와 무관하게 일관.
 
+## 2.1 UI 정리 (이 증분에 포함)
+현재 툴바가 스캔 버튼 4개(연결/스캔/연결끊기/디버그)+옵션 5개로 난잡 → 정리한다.
+
+**화면 공유 = 단일 토글 + 스캔 동작:**
+- 연결 전: `[🖥️ 화면 공유]` (클릭 → getDisplayMedia; 저장 rect 없으면 보정 패널 자동 오픈).
+- 연결 후: `[📷 스캔]` `[⏹ 공유 중지]` + 작은 `[📐 재보정]`. 상태 텍스트 인라인.
+- `💾 디버그: 프레임 저장` 버튼은 **최종 UI에서 제거**(진단용 임시였음).
+- **스캔 버튼은 한시적**: 다음 증분(연속 자동 루프)에서 자동 스캔으로 대체되어 제거되고, 토글 하나만 남는다(§1.1·§9 북극성). 본 증분 구조는 그 수렴을 막지 않게 설계(스캔 트리거만 수동→자동 교체).
+
+**보드 툴바:** `되돌리기`·`전체 비우기` 유지.
+
+**옵션 정리(5→접이식):** `보너스 주사위`(보드 직접 관련)만 인라인 유지. 나머지 4개(`내 밑장빼기`·`상대 밑장빼기`·`정밀 모드`·`무지성 상대`)는 `⚙️ 옵션 ▾` 접이식에 넣어 **기본 접힘**(펼침 상태는 localStorage 기억). 평소 체크박스 1개만 노출.
+
+본 정리는 **표시/배치만** 바꾸며 기존 옵션의 동작·바인딩(`bonusMode`/`myMitjang`/`oppMitjang`/`precise`/`realAI`)·솔버는 불변.
+
 ## 3. 데이터 흐름 / 저장
 ```
 [화면 연결] → 1프레임 grab
@@ -51,7 +66,7 @@
 | `src/vision/vision-worker.js` | 메시지에서 선택적 `boardRect` 받아 `recognizeFrame(frame, boardRect)`로 전달. |
 | `src/vision/layout.js` | **홀딩박스 분수 미세튜닝** — 진단의 23px 어긋남(굴린주사위 오인식 원인) 보정. `holdMine`/`holdOpp` 분수를 라이브 캡처(708,800) + 02 양쪽에서 검증. (값은 추정치였음 — 부모 코어 forward concern.) |
 | `src/vision/calibration.js` (신규·순수) | 보정 기하만 담당(**오버레이 점은 기존 `computeLayout(rect)` 재사용 — 재구현 금지**): `handlesOf(rect) -> [{id,x,y}]`(4모서리+4변 핸들), `hitTest(pt, rect, tol) -> handleId\|'inside'\|null`, `applyDrag(rect, target, dx, dy) -> rect'`(target='inside'면 이동, 핸들이면 리사이즈; 최소 크기 클램프), `toFrameRect(displayRect, scale)`/`toDisplayRect(frameRect, scale)`(표시↔프레임 좌표 환산). **DOM 없음**. 오버레이 렌더는 app 측에서 `computeLayout(rect)`의 cells/holdMine/holdOpp 점을 그린다. |
-| `app.js`/`index.html`/`styles.css` | 보정 패널(캔버스 + 오버레이 캔버스/SVG + 핸들 + 새로고침/확인/취소), 재보정 버튼, localStorage load/save, worker에 boardRect 전달. |
+| `app.js`/`index.html`/`styles.css` | 보정 패널(캔버스 + 오버레이 + 핸들 + 새로고침/확인/취소), localStorage load/save, worker에 boardRect 전달. **UI 정리(§2.1)**: 스캔 버튼 4개 → 화면공유 토글 + 스캔 + 재보정으로 축소, 디버그 버튼 제거, 옵션 4개 `⚙️ 옵션` 접이식(기본 접힘, 펼침상태 localStorage). 기존 옵션 v-model/솔버 불변. |
 
 `recognize.js`가 boardRect를 받을 때 `clipped`/`inBounds` 판정은 기존대로 유지.
 
@@ -77,7 +92,7 @@
 2. `recognize.js` `boardRect` 인자(하위호환) + 라이브 캡처 테스트 — **인식이 보정 rect로 된다는 계약 확정**.
 3. `vision-worker.js` boardRect 전달.
 4. `calibration.js`(순수 기하) + 테스트.
-5. `app.js`/`index.html`/`styles.css` 보정 패널·저장·재보정 결선 — 실브라우저 수동(인식 ms 측정).
+5. `app.js`/`index.html`/`styles.css` 보정 패널·저장·재보정 결선 + **UI 정리(§2.1: 공유 토글/스캔/재보정 축소, 디버그 제거, 옵션 접이식)** — 실브라우저 수동(인식 ms 측정).
 
 ## 9. 범위 밖 / 향후 (북극성)
 - **연속 자동 루프**(다음 증분): 보정 rect 위에서 화면을 주기적으로 보다가 ① 내 턴(홀딩박스 주사위) 감지 → 자동 스캔·배치 ② 굴린 주사위 인식 → 자동 계산·추천. = "버튼 하나 → 전부 자동". 본 증분의 ms 측정으로 GO/NO-GO.
