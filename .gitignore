@@ -1,0 +1,8 @@
+# 게임 스크린샷 픽스처 (로컬 전용, 용량 큼 — 커밋하지 않음).
+# vision 테스트는 이 PNG들이 있어야 통과한다. 깨끗한 체크아웃/CI에서는
+# 픽스처가 없어 vision 테스트가 실패하는 것이 정상이다(의도된 untracked).
+vision-fixtures/*.png
+vision-fixtures/*.PNG
+
+# subagent-driven-development 진행 원장(로컬 전용; 진실 원본은 git log).
+.superpowers/
