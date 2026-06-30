@@ -35,3 +35,10 @@ test('findAnchor: 70% 축소본에서 배율 0.7 검출(메커니즘)', () => {
   const a = findAnchor(low, LANDMARK);
   assert.ok(Math.abs(a.scale - 0.7) < 0.06);
 });
+
+test('findAnchor: 좁은 scale 범위로도 02 앵커 검출(배율 1)', () => {
+  const gray = toGray(loadPng(join(FIX, '02-midgame-shields.png')));
+  const a = findAnchor(gray, LANDMARK, { scales: [0.95, 1.0, 1.05] });
+  assert.equal(a.scale, 1.0);
+  assert.ok(Number.isFinite(a.perPixel));
+});
