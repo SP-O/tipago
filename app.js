@@ -2,6 +2,7 @@ import { lineSum } from './src/scoring.js';
 import { cellToDieIndex, nextFillCell } from './src/ui-layout.js';
 import { connect as captureConnect, grabFrame as captureGrabFrame, disconnect as captureDisconnect, isBlackFrame } from './src/vision/capture.js';
 import { boardStateToSt, scanGate } from './src/vision/st-writer.js';
+import { createAutoloopState, autoloopStep, boardSignature } from './src/vision/autoloop.js';
 import { handlesOf, hitTest, applyDrag, toDisplayRect } from './src/vision/calibration.js';
 import { computeLayout } from './src/vision/layout.js';
 
@@ -228,6 +229,12 @@ createApp({
     const visionWorker = new Worker(new URL('./src/vision/vision-worker.js', import.meta.url), { type: 'module' });
     const scan = reactive({ connected: false, busy: false, status: '', lastMs: null, flags: null });
     let captureHandle = null;
+    // 연속 자동 루프: 화면을 주기적으로 인식하고, 내 턴에 '새 상태'가 안정적으로 잡히면 자동 적용+계산.
+    const auto = reactive({ on: false });
+    let loopState = createAutoloopState();
+    let loopTimer = null;
+    let inflight = null;      // 진행 중 인식 요청의 출처: 'manual' | 'auto'
+    const POLL_MS = 300;
 
     const REC_KEY = 'tikatuka.boardRect';
     const cal = reactive({ open: false, rect: null, frame: null, scale: 1, dispW: 0, dispH: 0, dragging: null, last: null });
@@ -238,7 +245,22 @@ createApp({
       const { board, ms } = e.data;
       scan.lastMs = Math.round(ms);
       scan.busy = false;
+      const mode = inflight; inflight = null;
+      if (mode === 'auto') {
+        const gate = scanGate(board);
+        const res = autoloopStep(loopState, board, gate);
+        loopState = res.state;
+        if (res.action === 'commit') applyScan(board);       // 새 상태 안정 확인 → 적용+계산
+        else if (res.action === 'ambiguous') {
+          const rs = gate.reasons.filter((r) => r !== 'notMyTurn');
+          scan.status = `인식 애매(${rs.join(', ')}) — 확인 후 [다시 스캔]`;
+        } else if (res.action === 'wait') scan.status = '인식 확인 중...';
+        else if (!gate.isMyTurn) scan.status = '상대 턴 — 대기 중';
+        return;
+      }
+      // 수동('다시 스캔'): 안정화 게이트 없이 강제 적용. 자동이 즉시 재커밋하지 않도록 커밋서명 동기화.
       applyScan(board);
+      loopState.committedSig = boardSignature(board);
     };
 
     async function scanConnect() {
@@ -247,7 +269,8 @@ createApp({
         scan.connected = true;
         const frame = captureGrabFrame(captureHandle);
         if (savedRect && savedRect.capW === frame.width && savedRect.capH === frame.height) {
-          scan.status = '연결됨 — [스캔]을 누르세요';
+          scan.status = '자동 인식 켜짐 — 내 턴에 굴리면 자동 계산';
+          autoStart();
         } else {
           if (savedRect) scan.status = '해상도/창이 달라졌어요 — 보정이 필요합니다';
           openCalibration(frame);
@@ -270,14 +293,38 @@ createApp({
       savedRect = { ...cal.rect, capW: cal.frame.width, capH: cal.frame.height };
       localStorage.setItem(REC_KEY, JSON.stringify(savedRect));
       cal.open = false; cal.frame = null;
-      scan.status = '보정 완료 — [스캔]을 누르세요';
+      scan.status = '보정 완료 — 자동 인식 켜짐';
+      if (scan.connected) autoStart();
     }
     function cancelCalibration() { cal.open = false; cal.frame = null; }
 
     function scanDisconnect() {
+      autoStop();
       if (captureHandle) captureDisconnect(captureHandle);
       captureHandle = null;
       scan.connected = false; scan.status = ''; scan.flags = null;
+    }
+
+    // ---- 연속 자동 루프 ----
+    function pollAuto() {
+      if (!auto.on || !scan.connected || scan.busy || cal.open || !savedRect) return;
+      let frame;
+      try { frame = captureGrabFrame(captureHandle); }
+      catch (err) { scan.status = '프레임 캡처 실패 — 다시 연결'; scan.connected = false; autoStop(); return; }
+      if (isBlackFrame(frame)) { scan.status = '검은 화면 — 테두리없는 창모드로'; return; }
+      scan.busy = true; inflight = 'auto';
+      const boardRect = { x: savedRect.x, y: savedRect.y, w: savedRect.w, h: savedRect.h };
+      visionWorker.postMessage({ buffer: frame.data.buffer, width: frame.width, height: frame.height, boardRect }, [frame.data.buffer]);
+    }
+    function autoStart() {
+      loopState = createAutoloopState();
+      auto.on = true;
+      if (loopTimer) clearInterval(loopTimer);
+      loopTimer = setInterval(pollAuto, POLL_MS);
+    }
+    function autoStop() {
+      auto.on = false;
+      if (loopTimer) { clearInterval(loopTimer); loopTimer = null; }
     }
     function scanNow() {
       if (!scan.connected || scan.busy) return;
@@ -286,7 +333,7 @@ createApp({
       try { frame = captureGrabFrame(captureHandle); }
       catch (err) { scan.status = '프레임 캡처 실패 — 다시 연결'; scan.connected = false; return; }
       if (isBlackFrame(frame)) { scan.status = '검은 화면 — 테두리없는 창모드로'; return; }
-      scan.busy = true; scan.status = '인식 중...';
+      scan.busy = true; inflight = 'manual'; scan.status = '인식 중...';
       const boardRect = { x: savedRect.x, y: savedRect.y, w: savedRect.w, h: savedRect.h };
       visionWorker.postMessage({ buffer: frame.data.buffer, width: frame.width, height: frame.height, boardRect }, [frame.data.buffer]);
     }
@@ -368,7 +415,7 @@ createApp({
       sumOf, sumClass, slotText, slotClass, rowRec, selectedLabel, selectedIsNew,
       canApplyAlkkagi, alkkagiLabel, applyAlkkagi,
       solve, pct, targetLabel, winColor,
-      scan, scanConnect, scanDisconnect, scanNow, scanRowWarn, recalibrate,
+      scan, auto, scanConnect, scanDisconnect, scanNow, scanRowWarn, recalibrate,
       cal, confirmCalibration, cancelCalibration, calPointerDown, calPointerMove, calPointerUp,
     };
   },

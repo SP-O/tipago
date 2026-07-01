@@ -98,6 +98,7 @@ h1 {
 }
 /* 화면 인식 / 보정 */
 .scan-status { font-size: 0.85rem; color: var(--muted); margin-left: 0.5rem; }
+.auto-dot { font-size: 0.8rem; font-weight: 700; color: var(--gold); align-self: center; white-space: nowrap; }
 .tool-btn.scan-go { border-color: var(--gold); }
 .vs-row.scan-warn { outline: 2px solid #e6c200; outline-offset: 2px; border-radius: 6px; }
 .opt-more { display: inline-block; margin-left: 0.5rem; }
