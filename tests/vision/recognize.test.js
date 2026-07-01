@@ -70,3 +70,11 @@ test('recognizeFrame: 일반 굴린주사위는 보너스 아님(rolledShield=fa
     assert.equal(r.bonusMode, false, `${f.n} bonusMode`);
   }
 });
+
+test('recognizeFrame(15-bonus-hold): 홀딩 쉴드 보너스주사위 → bonusMode=true', () => {
+  // 알까기 보너스(쉴드) 주사위가 홀딩박스에 있고 내 필드에 주사위 있음
+  const r = recognizeFrame(loadPng(join(FIX, '15-bonus-hold.png')), R(886, 654));
+  assert.equal(r.isMyTurn, true);
+  assert.equal(r.rolledShield, true, 'rolledShield');
+  assert.equal(r.bonusMode, true, 'bonusMode');
+});
