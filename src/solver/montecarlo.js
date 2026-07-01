@@ -1,6 +1,6 @@
 import { cloneState, boardFull } from '../state.js';
 import { gameResult, outcomeValue, decidedResult } from '../scoring.js';
-import { endTurn, placeDie, resolveAlkkagi, wouldTriggerAlkkagi } from '../rules.js';
+import { endTurn, placeDie, resolveAlkkagi, wouldTriggerAlkkagi, legalLines } from '../rules.js';
 import { rollDie, greedyMove, greedyBonusPlace, aiOpponentMove } from './evaluate.js';
 
 const ROLLOUT_CAP = 40;
@@ -15,9 +15,12 @@ export function rollout(state, rng, opts = {}) {
     const decided = decidedResult(s);
     if (decided) return outcomeValue(decided);
     const player = s.turn;
+    // 상대가 먼저 꽉 차도 게임은 판 전체가 찰 때까지 계속된다("game ends when full").
+    // 둘 곳 없는 플레이어는 턴만 넘기고, 빈칸 남은 플레이어가 계속 둔다.
+    if (legalLines(s, player).length === 0) { s = endTurn(s); depth++; continue; }
     const r = rollDie(rng);
     const move = opts.realAI && player === 'opp' ? aiOpponentMove(s, r, rng) : greedyMove(s, r, rng);
-    if (!move) break;
+    if (!move) { s = endTurn(s); depth++; continue; }
     if (move.alkkagi) {
       s = resolveAlkkagi(s, player, move.lineIndex, r);
       const b = rollDie(rng);

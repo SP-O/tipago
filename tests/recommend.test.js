@@ -63,6 +63,20 @@ test('recommend: 두 라인이 잠긴 확정승은 100%로 추천(홀드)', () =
   assert.equal(r.best.winProb, 1);
 });
 
+test('recommend: 상대가 먼저 꽉 차는 국면에서 전개 수를 저평가하지 않는다(트렁케이션 회귀)', () => {
+  // 실제 제보 보드. 내 빈칸5 vs 상대 빈칸2 → 롤아웃이 상대가 먼저 꽉 차면 조기종료해
+  // "라인1을 나중에 싸구려로 잠그는" 전개 수(라인2·3)를 과소평가하던 버그.
+  // 라인1(18 vs 19, 상대 꽉 참)은 어떤 주사위든 나중에 채워 이기므로, 6을 전개해도 승률이 높아야 한다.
+  const s = createState();
+  s.me.lines = [[D(6), D(6)], [D(4, true), D(6)], []];
+  s.opp.lines = [[D(5, true), D(5, true), D(4)], [D(6, true), D(1)], [D(4, true), D(3)]];
+  s.opp.hasMitjang = false; // me.hasMitjang = true (기본)
+  const r = recommend(s, 6, { seed: 1234567 });
+  const l3 = r.options.find((o) => o.target.lineIndex === 2); // 내 라인3에 전개
+  // 버그(조기종료) 상태에선 ~0.59. 판을 끝까지 두면 라인1은 결국 잠기므로 훨씬 높아야 한다.
+  assert.ok(l3.winProb > 0.8, `라인3 전개 승률이 저평가됨: ${l3.winProb}`);
+});
+
 test('통합: 중반 빈 보드에서 추천이 항상 best를 낸다', () => {
   const s = createState();
   s.me.hasMitjang = false;

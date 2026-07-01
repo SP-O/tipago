@@ -40,6 +40,9 @@ export function searchValue(state, budget) {
   if (decided !== null) return decided;
   if (budget <= 0) return heuristicValue(state);
   const player = state.turn;
+  // 상대가 먼저 꽉 차도 게임은 판 전체가 찰 때까지 계속된다("game ends when full").
+  // 둘 곳 없는 플레이어는 턴만 넘기고, 아직 빈칸이 있는 플레이어가 계속 둔다.
+  if (legalLines(state, player).length === 0) return searchValue(endTurn(state), budget);
   let acc = 0;
   for (let r = 1; r <= 6; r++) acc += turnValueExact(state, player, r, budget) / 6;
   return acc;
