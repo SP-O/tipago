@@ -5,7 +5,7 @@
 
 // 기준(배율1) 측정값 (스파이크, 02-midgame-shields.png, 앵커 1150,90)
 // 내 칸 x: [920, 1049, 1179]  상대 칸 x: [1448, 1577, 1707]
-// 행 y: [603, 748, 893]  셀크기: 96
+// 행 y: [603, 748, 893]  셀크기: 80(실측)
 // 홀딩박스: 내(좌측 녹색), 상대(우측 적색)
 //   내 홀딩 대략 x≈764, y≈748 (칸 좌측 약 156px 떨어진 곳)
 //   상대 홀딩 대략 x≈1863, y≈748 (칸 우측 약 156px)
@@ -26,7 +26,7 @@ const OPP_XS = [1448, 1577, 1707].map(x => (x - boardRect_ref.x) / boardRect_ref
 // 행 y 비율 (3행 공통)
 const ROW_YS = [603, 748, 893].map(y => (y - boardRect_ref.y) / boardRect_ref.h);
 // 셀크기 비율 (w 기준)
-const CELL_FRAC = 96 / boardRect_ref.w;
+const CELL_FRAC = 80 / boardRect_ref.w;
 
 // 홀딩박스 비율
 // 내 홀딩 중심 ≈ (764, 748) — 내 칸 좌측 외부

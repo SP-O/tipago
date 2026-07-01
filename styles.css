@@ -96,3 +96,15 @@ h1 {
   .vs-row { gap: 5px; }
   .cells { gap: 4px; }
 }
+/* 화면 인식 / 보정 */
+.scan-status { font-size: 0.85rem; color: var(--muted); margin-left: 0.5rem; }
+.tool-btn.scan-go { border-color: var(--gold); }
+.vs-row.scan-warn { outline: 2px solid #e6c200; outline-offset: 2px; border-radius: 6px; }
+.opt-more { display: inline-block; margin-left: 0.5rem; }
+.opt-more summary { cursor: pointer; color: var(--muted); }
+.opt-more .chk { display: block; margin-top: 0.4rem; }
+.cal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.cal-modal { background: var(--panel); padding: 16px; border-radius: 10px; max-width: 95vw; }
+.cal-modal canvas { display: block; touch-action: none; cursor: crosshair; max-width: 100%; }
+.cal-help { color: var(--text); font-size: 0.9rem; margin-bottom: 8px; }
+.cal-btns { margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; }

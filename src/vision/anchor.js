@@ -45,8 +45,8 @@ export function matchTemplate(frame, tmpl, opts = {}) {
   return fineBest;
 }
 
-export function findAnchor(frameGray, landmark) {
-  const scales = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6];
+export function findAnchor(frameGray, landmark, opts = {}) {
+  const scales = opts.scales ?? [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6];
   let best = { x: 0, y: 0, scale: 1, perPixel: Infinity };
   for (const s of scales) {
     const t = resizeGray(landmark, Math.round(landmark.width * s), Math.round(landmark.height * s));

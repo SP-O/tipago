@@ -19,13 +19,18 @@
         <div class="board-toolbar">
           <button class="tool-btn" :disabled="!canUndo" @click="undo()">↩️ 되돌리기</button>
           <button class="tool-btn" @click="clearAll()">🗑️ 전체 비우기</button>
+          <button class="tool-btn" v-if="!scan.connected" @click="scanConnect()">🖥️ 화면 공유</button>
+          <button class="tool-btn scan-go" v-if="scan.connected" :disabled="scan.busy" @click="scanNow()">📷 스캔</button>
+          <button class="tool-btn" v-if="scan.connected" @click="recalibrate()">📐 재보정</button>
+          <button class="tool-btn" v-if="scan.connected" @click="scanDisconnect()">⏹ 공유 중지</button>
+          <span class="scan-status" v-if="scan.status">{{ scan.status }}</span>
         </div>
         <div class="vs-head">
           <span>내 필드</span>
           <span>상대 필드</span>
         </div>
         <div class="board-scroll">
-          <div v-for="li in 3" :key="li" class="vs-row" :class="{ 'row-rec': rowRec(li - 1) }">
+          <div v-for="li in 3" :key="li" class="vs-row" :class="{ 'row-rec': rowRec(li - 1), 'scan-warn': scanRowWarn(li - 1) }">
             <span class="ln">라인 {{ li }}</span>
             <div class="cells">
               <button
@@ -77,10 +82,13 @@
 
         <div class="options-row">
           <label class="chk"><input type="checkbox" v-model="bonusMode" /> 보너스 주사위(실드·양쪽 배치)</label>
-          <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 밑장빼기 남음</label>
-          <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 밑장빼기 사용</label>
-          <label class="chk"><input type="checkbox" v-model="precise" /> 정밀 모드(느림·더 최적)</label>
-          <label class="chk"><input type="checkbox" v-model="realAI" /> 별 3등급 이하 상대(무지성 알까기)</label>
+          <details class="opt-more">
+            <summary>⚙️ 옵션</summary>
+            <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 밑장빼기 남음</label>
+            <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 밑장빼기 사용</label>
+            <label class="chk"><input type="checkbox" v-model="precise" /> 정밀 모드(느림·더 최적)</label>
+            <label class="chk"><input type="checkbox" v-model="realAI" /> 별 3등급 이하 상대(무지성 알까기)</label>
+          </details>
         </div>
 
         <button class="solve-btn" :disabled="!die || solving" @click="solve()">
@@ -124,6 +132,18 @@
       </div>
 
       <p class="footnote">승률 = 양쪽이 최선을 다하고 주사위가 무작위일 때 내가 이길 확률(보수적 추정).</p>
+
+      <div class="cal-overlay" v-if="cal.open">
+        <div class="cal-modal">
+          <div class="cal-help">보드 격자를 주사위/칸에 맞춰 드래그하세요. 파란 점이 칸, 노란 점이 굴림칸입니다.</div>
+          <canvas id="calCanvas"
+            @pointerdown="calPointerDown" @pointermove="calPointerMove" @pointerup="calPointerUp" @pointerleave="calPointerUp"></canvas>
+          <div class="cal-btns">
+            <button class="tool-btn" @click="confirmCalibration()">✔ 확인</button>
+            <button class="tool-btn" @click="cancelCalibration()">취소</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <script type="module" src="./app.js"></script>
