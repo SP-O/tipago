@@ -2,7 +2,7 @@
 // Pipeline: anchor → layout → classify cells → turn / bonusMode / clipped
 // Imports: image.js, anchor.js, landmark-data.js, layout.js, templates-data.js, blob.js
 
-import { toGray, normPatch } from './image.js';
+import { toGray, normPatchScaled } from './image.js';
 import { findAnchor } from './anchor.js';
 import { LANDMARK } from './landmark-data.js';
 import { anchorToBoardRect, computeLayout } from './layout.js';
@@ -55,8 +55,13 @@ function ssd(a, b) {
 
 // ---- cell classification (template matching 1..6) ----------------------
 
-function classifyByTemplate(gray, cx, cy) {
-  const p = normPatch(gray, cx, cy, TPL_SIZE);
+// 템플릿은 기준 배율(cellSize≈80)에서 창 70px로 박제됨. 다른 해상도에선 실제 다이 크기에 맞춰
+// srcSize 창을 잡아 TPL_SIZE로 리샘플 → 스케일 무관 매칭. srcSize = cs * (70/80).
+const BASELINE_CELL = 80;
+function srcWinFor(cs) { return Math.max(8, Math.round(cs * TPL_SIZE / BASELINE_CELL)); }
+
+function classifyByTemplate(gray, cx, cy, srcSize) {
+  const p = normPatchScaled(gray, cx, cy, srcSize, TPL_SIZE);
   let bestVal = -1, bestScore = Infinity, secondScore = Infinity;
   for (let k = 1; k <= 6; k++) {
     if (!TEMPLATES[k]) continue;
@@ -99,6 +104,11 @@ export function recognizeFrame(frame, boardRect = null) {
   const rect = boardRect || anchorToBoardRect(findAnchor(gray, LANDMARK));
   const L = computeLayout(rect);
   const cs = L.cellSize;
+  // 모든 픽셀 파라미터를 cellSize(=보정 박스에 비례)로 스케일 → 해상도 무관.
+  // 기준 배율 cs≈80에서 아래 값들은 기존 상수(48/55/110/2500/70)와 동일 → 하위호환.
+  const srcSize = srcWinFor(cs);
+  const cellHalf = Math.round(cs * 0.6);
+  const blobOpts = { minPx: Math.round(cs * cs * 0.39), min: Math.round(cs * 0.6875), max: Math.round(cs * 1.375) };
 
   let clipped = false;
 
@@ -107,9 +117,9 @@ export function recognizeFrame(frame, boardRect = null) {
     return sideCells.map(row =>
       row.map(({ cx, cy }) => {
         if (isCellClipped(cx, cy, cs, gray.width, gray.height)) { clipped = true; return null; }
-        const b = findDieBlob(gray, cx, cy, 48);
+        const b = findDieBlob(gray, cx, cy, cellHalf, blobOpts);
         if (!b) return { value: 0, shield: false, conf: Infinity }; // 빈칸
-        const { value, conf } = classifyByTemplate(gray, b.cx, b.cy);
+        const { value, conf } = classifyByTemplate(gray, b.cx, b.cy, srcSize);
         const shield = isShield(frame, b.cx, b.cy, cs);
         return { value, shield, conf };
       })
@@ -120,11 +130,11 @@ export function recognizeFrame(frame, boardRect = null) {
   const oppCells = processSide(L.cells.opp);
 
   // Turn detection via holding blob detection (clip-guarded: out-of-frame → not my turn)
-  const HOLD_HALF = 70;
+  const holdHalf = Math.round(cs * 0.875);
   let isMyTurn = false, rolledDie = 0, rolledShield = false;
-  if (inFrameWindow(L.holdMine.cx, L.holdMine.cy, HOLD_HALF, gray.width, gray.height)) {
-    const hb = findDieBlob(gray, L.holdMine.cx, L.holdMine.cy, HOLD_HALF);
-    if (hb) { isMyTurn = true; rolledDie = classifyByTemplate(gray, hb.cx, hb.cy).value; rolledShield = isShield(frame, hb.cx, hb.cy, cs); }
+  if (inFrameWindow(L.holdMine.cx, L.holdMine.cy, holdHalf, gray.width, gray.height)) {
+    const hb = findDieBlob(gray, L.holdMine.cx, L.holdMine.cy, holdHalf, blobOpts);
+    if (hb) { isMyTurn = true; rolledDie = classifyByTemplate(gray, hb.cx, hb.cy, srcSize).value; rolledShield = isShield(frame, hb.cx, hb.cy, cs); }
   }
 
   // 보너스 주사위: 굴린 주사위가 쉴드 + 내 필드에 이미 주사위 있음(첫턴 제외 — 상대필드 배치 불가)
