@@ -88,7 +88,7 @@
 
         <div class="options-row">
           <label class="chk"><input type="checkbox" v-model="bonusMode" /> 보너스 주사위(실드·양쪽 배치)</label>
-          <details class="opt-more">
+          <details class="opt-more" v-if="!(scan.connected && result)">
             <summary>⚙️ 옵션</summary>
             <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 리롤 남음</label>
             <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 리롤 사용</label>
@@ -103,6 +103,17 @@
       </div>
 
       <div class="panel result" v-if="result" :style="{ order: scan.connected ? 1 : 2 }">
+        <div class="opt-corner-row" v-if="scan.connected">
+          <details class="opt-more opt-corner">
+            <summary>⚙️ 옵션</summary>
+            <div class="opt-grid">
+              <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 리롤 남음</label>
+              <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 리롤 사용</label>
+              <label class="chk"><input type="checkbox" v-model="precise" /> 정밀 모드</label>
+              <label class="chk"><input type="checkbox" v-model="realAI" /> 별3 이하 상대</label>
+            </div>
+          </details>
+        </div>
         <div class="result-error" v-if="result._error">⚠️ 계산 오류: {{ result._error }}</div>
         <div class="engine-badge" v-if="result.engine">
           엔진: <strong>{{ result.engine === 'nn' ? '🧠 학습 모델(실험)' : '🧮 정밀 솔버' }}</strong>

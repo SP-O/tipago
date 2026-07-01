@@ -102,6 +102,12 @@ h1 {
   .vs-row { gap: 5px; }
   .cells { gap: 4px; }
 }
+/* 화면공유 중 결과 패널 우측 상단으로 옮겨진 옵션(가로 2열) */
+.opt-corner-row { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.opt-corner summary { font-size: 0.85em; }
+.opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 6px; }
+.opt-grid .chk { display: flex; margin-top: 0; font-size: 0.78em; white-space: nowrap; }
+
 /* 화면 인식 / 보정 */
 .scan-status { font-size: 0.85rem; color: var(--muted); margin-left: 0.5rem; }
 .auto-dot { font-size: 0.8rem; font-weight: 700; color: var(--gold); align-self: center; white-space: nowrap; }
