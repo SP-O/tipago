@@ -62,3 +62,11 @@ test('recognizeFrame: 쉴드(색 테두리) 검출 - 라이브 11/14', () => {
   }
   assert.ok(correct / total >= 0.9, `쉴드 정확도 ${correct}/${total}`);
 });
+
+test('recognizeFrame: 일반 굴린주사위는 보너스 아님(rolledShield=false)', () => {
+  for (const f of FRAMES) {
+    const r = recognizeFrame(loadPng(join(FIX, f.n)), f.r);
+    assert.equal(r.rolledShield, false, `${f.n} rolledShield`);
+    assert.equal(r.bonusMode, false, `${f.n} bonusMode`);
+  }
+});

@@ -23,12 +23,6 @@ function isGreen(frame, x, y) {
   return g - r > 25 && g - b > 25 && g > 90;
 }
 
-function isWhite(frame, x, y) {
-  const i = (y * frame.width + x) * 4;
-  const r = frame.data[i], g = frame.data[i + 1], b = frame.data[i + 2];
-  return r > 200 && g > 200 && b > 200;
-}
-
 // ---- shield detection ---------------------------------------------------
 // Sample border ring at ~cellSize*0.5 and cellSize*0.55 from the centre (40-44px at cellSize=80)
 
@@ -72,41 +66,6 @@ function classifyByTemplate(gray, cx, cy) {
   }
   const conf = bestScore > 0 ? (secondScore - bestScore) / bestScore : Infinity;
   return { value: bestVal, conf };
-}
-
-// ---- bonusMode heuristic ------------------------------------------------
-// Check if any opponent line has a white-pixel band (high white ratio) around cells
-
-function hasBonusWhiteBand(frame, cells, cellSize) {
-  // For each opponent row, sample the surrounding border area
-  // If white ratio > threshold in any row, it's bonus mode
-  const r = Math.round(cellSize * 0.5);
-  for (let row = 0; row < 3; row++) {
-    let white = 0, total = 0;
-    for (const { cx, cy } of cells[row]) {
-      // sample a band around each cell
-      for (let x = cx - r; x <= cx + r; x += 3) {
-        for (const dy of [-r, r]) {
-          const y = cy + dy;
-          if (x >= 0 && x < frame.width && y >= 0 && y < frame.height) {
-            total++;
-            if (isWhite(frame, x, y)) white++;
-          }
-        }
-      }
-      for (let y = cy - r; y <= cy + r; y += 3) {
-        for (const dx of [-r, r]) {
-          const x = cx + dx;
-          if (x >= 0 && x < frame.width && y >= 0 && y < frame.height) {
-            total++;
-            if (isWhite(frame, x, y)) white++;
-          }
-        }
-      }
-    }
-    if (total > 0 && white / total > 0.3) return true;
-  }
-  return false;
 }
 
 // ---- clipped detection --------------------------------------------------
@@ -162,19 +121,21 @@ export function recognizeFrame(frame, boardRect = null) {
 
   // Turn detection via holding blob detection (clip-guarded: out-of-frame → not my turn)
   const HOLD_HALF = 70;
-  let isMyTurn = false, rolledDie = 0;
+  let isMyTurn = false, rolledDie = 0, rolledShield = false;
   if (inFrameWindow(L.holdMine.cx, L.holdMine.cy, HOLD_HALF, gray.width, gray.height)) {
     const hb = findDieBlob(gray, L.holdMine.cx, L.holdMine.cy, HOLD_HALF);
-    if (hb) { isMyTurn = true; rolledDie = classifyByTemplate(gray, hb.cx, hb.cy).value; }
+    if (hb) { isMyTurn = true; rolledDie = classifyByTemplate(gray, hb.cx, hb.cy).value; rolledShield = isShield(frame, hb.cx, hb.cy, cs); }
   }
 
-  // bonusMode heuristic: white border band around opponent cells
-  const bonusMode = hasBonusWhiteBand(frame, L.cells.opp, cs);
+  // 보너스 주사위: 굴린 주사위가 쉴드 + 내 필드에 이미 주사위 있음(첫턴 제외 — 상대필드 배치 불가)
+  const myHasDice = meCells.some((row) => row.some((c) => c && c.value > 0));
+  const bonusMode = rolledShield && myHasDice;
 
   return {
     cells: { me: meCells, opp: oppCells },
     rolledDie,
     isMyTurn,
+    rolledShield,
     bonusMode,
     clipped,
   };
