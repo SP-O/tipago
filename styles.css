@@ -14,7 +14,7 @@ body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: "Noto Sans KR", sans-serif; color-scheme: dark;
 }
-.container { max-width: 760px; width: 94%; margin: 0 auto; padding: 28px 0 60px; }
+.container { max-width: 760px; width: 94%; margin: 0 auto; padding: 28px 0 60px; display: flex; flex-direction: column; }
 h1 {
   font-family: "Outfit", "Noto Sans KR", sans-serif; font-size: 1.6em;
   text-align: center; color: #fff; margin: 0 0 4px;
@@ -88,12 +88,14 @@ h1 {
 .tag-alk-sm { color: var(--gold); font-size: 0.8em; margin-left: 6px; }
 .rec-winrate { font-size: 1.8em; font-weight: 800; margin-top: 6px; }
 .close-hint { margin: 8px auto 0; max-width: 30em; font-size: 0.9em; color: var(--gold); background: oklch(0.8868 0.1822 95.3226 / 0.10); border-radius: 8px; padding: 7px 12px; }
-.mitjang-advice { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 12px; color: var(--muted); font-size: 0.95em; }
+.mitjang-advice { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 12px; text-align: center; }
+.mitjang-headline { font-size: 1.15em; font-weight: 800; margin-bottom: 4px; }
+.mitjang-detail { color: var(--muted); font-size: 0.9em; }
 .rec-yes { color: var(--green); }
-.rec-no { color: var(--muted); }
+.rec-no { color: var(--gold); }
 .other-title { color: var(--muted); font-size: 0.85em; margin: 14px 0 6px; }
 .opt-row { display: flex; justify-content: space-between; padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 0.95em; }
-.footnote { color: var(--muted); font-size: 0.8em; text-align: center; margin-top: 6px; }
+.footnote { color: var(--muted); font-size: 0.8em; text-align: center; margin-top: 6px; order: 3; }
 @media (max-width: 560px) {
   .slot { width: 38px; height: 38px; font-size: 1.05em; }
   .ln { width: 28px; font-size: 0.72em; }

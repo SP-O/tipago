@@ -61,7 +61,7 @@
         </div>
       </div>
 
-      <div class="panel controls">
+      <div class="panel controls" :style="{ order: scan.connected ? 2 : 1 }">
         <div class="section-toggle" @click="toggleInputCollapsed()">
           <span class="section-toggle-arrow">{{ inputCollapsed ? '▶' : '▼' }}</span> 수동 입력(필드 직접 입력 · 굴린 주사위)
         </div>
@@ -90,8 +90,8 @@
           <label class="chk"><input type="checkbox" v-model="bonusMode" /> 보너스 주사위(실드·양쪽 배치)</label>
           <details class="opt-more">
             <summary>⚙️ 옵션</summary>
-            <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 밑장빼기 남음</label>
-            <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 밑장빼기 사용</label>
+            <label class="chk"><input type="checkbox" v-model="myMitjang" /> 내 리롤 남음</label>
+            <label class="chk"><input type="checkbox" v-model="oppMitjang" /> 상대 리롤 사용</label>
             <label class="chk"><input type="checkbox" v-model="precise" /> 정밀 모드(느림·더 최적)</label>
             <label class="chk"><input type="checkbox" v-model="realAI" /> 별 3등급 이하 상대(무지성 알까기)</label>
           </details>
@@ -102,7 +102,7 @@
         </button>
       </div>
 
-      <div class="panel result" v-if="result">
+      <div class="panel result" v-if="result" :style="{ order: scan.connected ? 1 : 2 }">
         <div class="result-error" v-if="result._error">⚠️ 계산 오류: {{ result._error }}</div>
         <div class="engine-badge" v-if="result.engine">
           엔진: <strong>{{ result.engine === 'nn' ? '🧠 학습 모델(실험)' : '🧮 정밀 솔버' }}</strong>
@@ -125,10 +125,12 @@
         </button>
 
         <div class="mitjang-advice" v-if="result.mitjang">
-          밑장빼기: 지금 그냥 두기 {{ pct(result.mitjang.baseWinProb) }}
-          vs 밑장빼기 {{ pct(result.mitjang.mitjangWinProb) }}
-          <strong v-if="result.mitjang.recommend" class="rec-yes">→ 권장 👍</strong>
-          <span v-else class="rec-no">→ 아껴두기</span>
+          <div class="mitjang-headline" :class="result.mitjang.recommend ? 'rec-yes' : 'rec-no'">
+            {{ result.mitjang.recommend ? '리롤하기' : '아껴두기' }}
+          </div>
+          <div class="mitjang-detail">
+            그냥 두기 {{ pct(result.mitjang.baseWinProb) }} VS 리롤 {{ pct(result.mitjang.mitjangWinProb) }}
+          </div>
         </div>
 
         <div class="other-options" v-if="result.options.length > 1">
