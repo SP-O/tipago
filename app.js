@@ -337,6 +337,7 @@ createApp({
       die.value = mapped.die || null;
       ui.bonusMode = mapped.bonusMode;
       ui.selected = null;
+      ui.nextShield = false; // 스캔은 보드(실드 포함)를 직접 읽으므로 수동-배치 실드 힌트 해제
       if (gate.ok) { scan.status = `인식 완료(${scan.lastMs}ms) — 계산합니다`; solve(); }
       else { scan.status = `인식했지만 확인 필요(${gate.reasons.join(', ')}) — 노란 라인을 확인·수정 후 [추천] 하세요`; }
     }
