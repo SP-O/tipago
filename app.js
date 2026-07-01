@@ -35,6 +35,7 @@ createApp({
     const st = reactive({ me: emptyBoard(), opp: emptyBoard() });
     const isBoardEmpty = () => st.me.every((l) => l.length === 0) && st.opp.every((l) => l.length === 0);
 
+    const INPUT_COLLAPSED_KEY = 'tikatuka.inputCollapsed';
     const die = ref(null);
     const ui = reactive({
       selected: null,    // { side, li, dieIndex } 기존 편집 | { side, li, isNew:true } 추가
@@ -47,7 +48,13 @@ createApp({
       precise: false,    // 정밀 모드(느림·더 최적)
       realAI: false,     // 실제 AI 상대 모드(실전 AI 성향 반영)
       nextShield: false, // 다음에 놓는 주사위를 실드로(알까기 보너스용, 1회 후 자동 해제)
+      // 자동 인식 사용 시 수동 입력을 누를 일이 적어 접어 화면공유 시 세로 공간 확보(선택 유지)
+      inputCollapsed: localStorage.getItem(INPUT_COLLAPSED_KEY) === '1',
     });
+    function toggleInputCollapsed() {
+      ui.inputCollapsed = !ui.inputCollapsed;
+      localStorage.setItem(INPUT_COLLAPSED_KEY, ui.inputCollapsed ? '1' : '0');
+    }
 
     const history = reactive([]); // 보드 스냅샷 스택(되돌리기)
 
@@ -411,7 +418,7 @@ createApp({
       ...toRefs(st),
       die,
       ...toRefs(ui),
-      canUndo, undo, clearAll,
+      canUndo, undo, clearAll, toggleInputCollapsed,
       selectSlot, setSlotValue, toggleSlotShield, clearSlot, clearSlotAt,
       sumOf, sumClass, slotText, slotClass, rowRec, selectedLabel, selectedIsNew,
       canApplyAlkkagi, alkkagiLabel, applyAlkkagi,

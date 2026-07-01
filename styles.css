@@ -64,6 +64,9 @@ h1 {
 .key-clear { color: var(--muted); }
 .key:disabled { opacity: 0.35; cursor: not-allowed; }
 .key:disabled:hover { background: var(--panel-2); }
+.section-toggle { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.9em; font-weight: 700; cursor: pointer; user-select: none; padding: 4px 2px 10px; }
+.section-toggle:hover { color: var(--text); }
+.section-toggle-arrow { color: var(--gold); font-size: 0.8em; width: 0.9em; display: inline-block; }
 .input-section { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; transition: opacity 0.15s; }
 .input-section.roll-input { border-left: 3px solid var(--gold); }
 .input-section.inactive { opacity: 0.5; }

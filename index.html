@@ -62,22 +62,27 @@
       </div>
 
       <div class="panel controls">
-        <div class="input-section" :class="{ inactive: !selected }">
-          <div class="keypad-title">① 필드 입력 — <strong>{{ selected ? selectedLabel : '보드의 칸을 클릭하세요' }}</strong><span v-if="nextShield" class="shield-hint"> · 🛡 다음 주사위는 실드로</span></div>
-          <div class="keypad">
-            <button v-for="n in 6" :key="n" class="key" :disabled="!selected" @click="setSlotValue(n)">{{ n }}</button>
-            <button class="key key-shield" :disabled="!selected || selectedIsNew" @click="toggleSlotShield()">실드</button>
-            <button class="key key-clear" :disabled="!selected || selectedIsNew" @click="clearSlot()">비우기</button>
-          </div>
+        <div class="section-toggle" @click="toggleInputCollapsed()">
+          <span class="section-toggle-arrow">{{ inputCollapsed ? '▶' : '▼' }}</span> 수동 입력(필드 직접 입력 · 굴린 주사위)
         </div>
+        <div v-show="!inputCollapsed">
+          <div class="input-section" :class="{ inactive: !selected }">
+            <div class="keypad-title">① 필드 입력 — <strong>{{ selected ? selectedLabel : '보드의 칸을 클릭하세요' }}</strong><span v-if="nextShield" class="shield-hint"> · 🛡 다음 주사위는 실드로</span></div>
+            <div class="keypad">
+              <button v-for="n in 6" :key="n" class="key" :disabled="!selected" @click="setSlotValue(n)">{{ n }}</button>
+              <button class="key key-shield" :disabled="!selected || selectedIsNew" @click="toggleSlotShield()">실드</button>
+              <button class="key key-clear" :disabled="!selected || selectedIsNew" @click="clearSlot()">비우기</button>
+            </div>
+          </div>
 
-        <div class="input-section roll-input">
-          <div class="keypad-title">② 내가 굴린 주사위</div>
-          <div class="keypad">
-            <button
-              v-for="n in 6" :key="n"
-              class="key" :class="{ active: die === n }"
-              @click="die = n">{{ n }}</button>
+          <div class="input-section roll-input">
+            <div class="keypad-title">② 내가 굴린 주사위</div>
+            <div class="keypad">
+              <button
+                v-for="n in 6" :key="n"
+                class="key" :class="{ active: die === n }"
+                @click="die = n">{{ n }}</button>
+            </div>
           </div>
         </div>
 
