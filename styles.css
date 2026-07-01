@@ -106,7 +106,7 @@ h1 {
    position:absolute로 흐름에서 빼서, 펼쳐도 패널 높이가 늘어나지 않고
    그 위에 겹쳐 뜨는 팝오버 형태 - 빈 공간을 그대로 사용. */
 .panel.result { position: relative; }
-.opt-corner-row { position: absolute; top: 0; left: 0; z-index: 6; }
+.opt-corner-row { position: absolute; top: 18px; left: 18px; z-index: 6; }
 .opt-corner summary {
   list-style: none;
   cursor: pointer;
@@ -129,7 +129,9 @@ h1 {
   from { opacity: 0; transform: translateY(-6px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.opt-grid .chk { display: flex; margin-top: 0; font-size: 0.8em; white-space: nowrap; }
+/* .opt-more .chk(display:block, 2클래스)와 동일 우선순위라 소스순서에 밀리던 문제 ->
+   3클래스로 확실히 이기게 해 flex 정렬(체크박스+글자 간격/수직중앙)이 항상 적용되도록 함. */
+.opt-corner .opt-grid .chk { display: flex; margin-top: 0; font-size: 0.8em; white-space: nowrap; }
 
 /* 화면 인식 / 보정 */
 .scan-status { font-size: 0.85rem; color: var(--muted); margin-left: 0.5rem; }
