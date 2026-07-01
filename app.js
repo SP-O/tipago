@@ -1,5 +1,6 @@
 import { lineSum } from './src/scoring.js';
 import { cellToDieIndex, nextFillCell } from './src/ui-layout.js';
+import { isCloseCall } from './src/solver/advice.js';
 import { connect as captureConnect, grabFrame as captureGrabFrame, disconnect as captureDisconnect, isBlackFrame } from './src/vision/capture.js';
 import { boardStateToSt, scanGate } from './src/vision/st-writer.js';
 import { createAutoloopState, autoloopStep, boardSignature } from './src/vision/autoloop.js';
@@ -414,7 +415,7 @@ createApp({
       selectSlot, setSlotValue, toggleSlotShield, clearSlot, clearSlotAt,
       sumOf, sumClass, slotText, slotClass, rowRec, selectedLabel, selectedIsNew,
       canApplyAlkkagi, alkkagiLabel, applyAlkkagi,
-      solve, pct, targetLabel, winColor,
+      solve, pct, targetLabel, winColor, isCloseCall,
       scan, auto, scanConnect, scanDisconnect, scanNow, scanRowWarn, recalibrate,
       cal, confirmCalibration, cancelCalibration, calPointerDown, calPointerMove, calPointerUp,
     };

@@ -84,6 +84,7 @@ h1 {
 .tag-alk { background: var(--gold); color: #000; border-radius: 6px; padding: 1px 8px; font-size: 0.75em; margin-left: 6px; font-weight: 700; }
 .tag-alk-sm { color: var(--gold); font-size: 0.8em; margin-left: 6px; }
 .rec-winrate { font-size: 1.8em; font-weight: 800; margin-top: 6px; }
+.close-hint { margin: 8px auto 0; max-width: 30em; font-size: 0.9em; color: var(--gold); background: oklch(0.8868 0.1822 95.3226 / 0.10); border-radius: 8px; padding: 7px 12px; }
 .mitjang-advice { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 12px; color: var(--muted); font-size: 0.95em; }
 .rec-yes { color: var(--green); }
 .rec-no { color: var(--muted); }
