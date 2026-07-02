@@ -140,7 +140,7 @@
 
         <div class="mitjang-advice" v-if="result.mitjang">
           <div class="mitjang-headline" :class="result.mitjang.recommend ? 'rec-yes' : 'rec-no'">
-            {{ result.mitjang.recommend ? '리롤하기' : '아껴두기' }}
+            {{ result.mitjang.recommend ? '리롤 권장' : '아껴두기 추천' }}
           </div>
           <div class="mitjang-detail">
             그냥 두기 {{ pct(result.mitjang.baseWinProb) }} VS 리롤 {{ pct(result.mitjang.mitjangWinProb) }}
