@@ -60,14 +60,41 @@ function ssd(a, b) {
 const BASELINE_CELL = 80;
 function srcWinFor(cs) { return Math.max(8, Math.round(cs * TPL_SIZE / BASELINE_CELL)); }
 
+// 3·5 전용 판별 마스크: 두 템플릿이 가장 다른 픽셀 상위 15%(= 5에만 있는 모서리 점 영역).
+// 3(대각선 3점)과 5(네 모서리+중앙)는 점 배치가 겹쳐 전역 SSD 마진이 저해상도에서 붕괴(6% 수준)
+// → 이 영역에서만 재비교하면 마진이 크게 벌어져(≈4배) 접전 5를 확신 있게 5로 굳힌다.
+// 손으로 픽셀 좌표를 찍지 않고 템플릿에서 자동 생성 → 튜닝 상수 없음, 스케일 무관.
+const MASK_35 = buildDiffMask(TEMPLATES[3], TEMPLATES[5], 0.15);
+function buildDiffMask(a, b, frac) {
+  if (!a || !b) return null;
+  const n = a.length;
+  const idx = new Array(n);
+  for (let i = 0; i < n; i++) idx[i] = i;
+  idx.sort((i, j) => Math.abs(b[j] - a[j]) - Math.abs(b[i] - a[i]));
+  return idx.slice(0, Math.round(n * frac));
+}
+function ssdMasked(p, T, mask) {
+  let s = 0;
+  for (const i of mask) { const d = p[i] - T[i]; s += d * d; }
+  return s;
+}
+
 function classifyByTemplate(gray, cx, cy, srcSize) {
   const p = normPatchScaled(gray, cx, cy, srcSize, TPL_SIZE);
-  let bestVal = -1, bestScore = Infinity, secondScore = Infinity;
+  let bestVal = -1, secondVal = -1, bestScore = Infinity, secondScore = Infinity;
   for (let k = 1; k <= 6; k++) {
     if (!TEMPLATES[k]) continue;
     const s = ssd(p, TEMPLATES[k]);
-    if (s < bestScore) { secondScore = bestScore; bestScore = s; bestVal = k; }
-    else if (s < secondScore) { secondScore = s; }
+    if (s < bestScore) { secondScore = bestScore; secondVal = bestVal; bestScore = s; bestVal = k; }
+    else if (s < secondScore) { secondScore = s; secondVal = k; }
+  }
+  // 상위 두 후보가 정확히 3과 5면 차이영역 판별기로 재결정(+ 넓어진 마진을 conf로 노출).
+  if (MASK_35 && ((bestVal === 3 && secondVal === 5) || (bestVal === 5 && secondVal === 3))) {
+    const m3 = ssdMasked(p, TEMPLATES[3], MASK_35);
+    const m5 = ssdMasked(p, TEMPLATES[5], MASK_35);
+    const win = m5 < m3 ? 5 : 3;
+    const lo = Math.min(m3, m5), hi = Math.max(m3, m5);
+    return { value: win, conf: lo > 0 ? (hi - lo) / lo : Infinity };
   }
   const conf = bestScore > 0 ? (secondScore - bestScore) / bestScore : Infinity;
   return { value: bestVal, conf };
