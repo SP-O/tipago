@@ -24,8 +24,8 @@ h1 {
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 0 10px oklch(0 0 0 / 0.5); padding: 18px; margin-bottom: 18px;
 }
-.board-toolbar { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 10px; }
-.tool-btn { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-weight: 700; cursor: pointer; transition: 0.15s; }
+.board-toolbar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-bottom: 10px; }
+.tool-btn { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-weight: 700; cursor: pointer; transition: 0.15s; white-space: nowrap; flex-shrink: 0; }
 .tool-btn:hover:not(:disabled) { background: oklch(0.4091 0 0); }
 .tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .vs-head { display: flex; justify-content: space-between; color: var(--gold); font-weight: 700; margin: 2px 6px 8px; }
@@ -87,7 +87,8 @@ h1 {
 .tag-alk { background: var(--gold); color: #000; border-radius: 6px; padding: 1px 8px; font-size: 0.75em; margin-left: 6px; font-weight: 700; }
 .tag-alk-sm { color: var(--gold); font-size: 0.8em; margin-left: 6px; }
 .rec-winrate { font-size: 1.8em; font-weight: 800; margin-top: 6px; }
-.close-hint { margin: 8px auto 0; max-width: 30em; font-size: 0.9em; color: var(--gold); background: oklch(0.8868 0.1822 95.3226 / 0.10); border-radius: 8px; padding: 7px 12px; }
+.close-hint { margin: 8px auto 0; max-width: 30em; font-size: 0.9em; color: var(--gold); background: oklch(0.8868 0.1822 95.3226 / 0.10); border-radius: 8px; padding: 7px 12px; line-height: 1.5; }
+.close-hint .line2 { color: var(--text); font-weight: 700; }
 .mitjang-advice { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 12px; text-align: center; }
 .mitjang-headline { font-size: 1.15em; font-weight: 800; margin-bottom: 4px; }
 .mitjang-detail { color: var(--muted); font-size: 0.9em; }
@@ -134,7 +135,7 @@ h1 {
 .opt-corner .opt-grid .chk { display: flex; margin-top: 0; font-size: 0.8em; white-space: nowrap; }
 
 /* 화면 인식 / 보정 */
-.scan-status { font-size: 0.85rem; color: var(--muted); margin-left: 0.5rem; }
+.scan-status { font-size: 0.85rem; color: var(--muted); margin-left: 0.5rem; word-break: keep-all; }
 .auto-dot { font-size: 0.8rem; font-weight: 700; color: var(--gold); align-self: center; white-space: nowrap; }
 .tool-btn.scan-go { border-color: var(--gold); }
 .vs-row.scan-warn { outline: 2px solid #e6c200; outline-offset: 2px; border-radius: 6px; }

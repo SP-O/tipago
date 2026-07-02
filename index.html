@@ -127,7 +127,8 @@
             승률 {{ pct(result.best.winProb) }}
           </div>
           <div class="close-hint" v-if="isCloseCall(result.options)">
-            🤔 선택지들이 막상막하예요 — 큰 차이 없으니 <strong>본인 직감대로</strong> 두셔도 좋아요.
+            <div>🤔 선택지 간 승률 차이가 {{ closeLeadPct(result.options) }}%p로 작아요.</div>
+            <div class="line2">본인 직감대로 두셔도 좋아요.</div>
           </div>
         </div>
 
