@@ -135,8 +135,10 @@ h1 {
 .opt-corner .opt-grid .chk { display: flex; margin-top: 0; font-size: 0.8em; white-space: nowrap; }
 
 /* 화면 인식 / 보정 */
+/* 자동 배지 + 스캔 메시지를 한 묶음으로 - 액션 버튼들 사이에 안 끼고 같이 붙어다님 */
+.scan-info { display: flex; align-items: flex-start; flex-wrap: wrap; }
 .scan-status { font-size: 0.85rem; color: var(--muted); margin-left: 0.5rem; word-break: keep-all; }
-.auto-dot { font-size: 0.8rem; font-weight: 700; color: var(--gold); align-self: center; white-space: nowrap; }
+.auto-dot { font-size: 0.8rem; font-weight: 700; color: var(--gold); white-space: nowrap; }
 .tool-btn.scan-go { border-color: var(--gold); }
 .vs-row.scan-warn { outline: 2px solid #e6c200; outline-offset: 2px; border-radius: 6px; }
 .opt-more { display: inline-block; margin-left: 0.5rem; }
