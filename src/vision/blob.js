@@ -31,9 +31,10 @@ export function findDieBlob(gray, cx, cy, half, opts = {}) {
       }
       const w = mxx - mnx + 1, h = mxy - mny + 1;
       if (cnt >= MINPX && w >= MIN && w <= MAX && h >= MIN && h <= MAX && (!best || cnt > best.cnt)) {
-        best = { cx: Math.round((mnx + mxx) / 2), cy: Math.round((mny + mxy) / 2), cnt };
+        best = { cx: Math.round((mnx + mxx) / 2), cy: Math.round((mny + mxy) / 2), w, h, cnt };
       }
     }
   }
-  return best ? { cx: best.cx, cy: best.cy } : null;
+  // w,h = 실측 주사위면 bbox 크기(분류 srcSize를 캘리브레이션 대신 실측에서 뽑을 때 사용).
+  return best ? { cx: best.cx, cy: best.cy, w: best.w, h: best.h } : null;
 }

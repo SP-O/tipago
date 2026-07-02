@@ -59,6 +59,10 @@ function ssd(a, b) {
 // srcSize 창을 잡아 TPL_SIZE로 리샘플 → 스케일 무관 매칭. srcSize = cs * (70/80).
 const BASELINE_CELL = 80;
 function srcWinFor(cs) { return Math.max(8, Math.round(cs * TPL_SIZE / BASELINE_CELL)); }
+// 분류 창은 캘리브레이션 cs가 아니라 "실측 주사위면 크기"에서 뽑는다. 창모드 box-drag cs가
+// 실제 주사위보다 크면 srcSize 과대 → 5가 3/1로 뒤집혀 계산이 깜빡였음(스케일 민감도).
+// blob은 blobOpts로 [cs*0.6875, cs*1.375] 범위로 이미 제한돼 병적 값이 안 나온다.
+function srcWinForBlob(blob) { return srcWinFor(Math.round((blob.w + blob.h) / 2)); }
 
 // 3·5 전용 판별 마스크: 두 템플릿이 가장 다른 픽셀 상위 15%(= 5에만 있는 모서리 점 영역).
 // 3(대각선 3점)과 5(네 모서리+중앙)는 점 배치가 겹쳐 전역 SSD 마진이 저해상도에서 붕괴(6% 수준)
@@ -131,9 +135,8 @@ export function recognizeFrame(frame, boardRect = null) {
   const rect = boardRect || anchorToBoardRect(findAnchor(gray, LANDMARK));
   const L = computeLayout(rect);
   const cs = L.cellSize;
-  // 모든 픽셀 파라미터를 cellSize(=보정 박스에 비례)로 스케일 → 해상도 무관.
-  // 기준 배율 cs≈80에서 아래 값들은 기존 상수(48/55/110/2500/70)와 동일 → 하위호환.
-  const srcSize = srcWinFor(cs);
+  // 픽셀 파라미터(검색창·블롭크기 게이트)는 cellSize로 스케일 → 해상도 무관.
+  // 단, 분류 srcSize만은 아래에서 각 블롭 실측 크기로 뽑는다(캘리브레이션 오차 강인).
   const cellHalf = Math.round(cs * 0.6);
   const blobOpts = { minPx: Math.round(cs * cs * 0.39), min: Math.round(cs * 0.6875), max: Math.round(cs * 1.375) };
 
@@ -146,7 +149,7 @@ export function recognizeFrame(frame, boardRect = null) {
         if (isCellClipped(cx, cy, cs, gray.width, gray.height)) { clipped = true; return null; }
         const b = findDieBlob(gray, cx, cy, cellHalf, blobOpts);
         if (!b) return { value: 0, shield: false, conf: Infinity }; // 빈칸
-        const { value, conf } = classifyByTemplate(gray, b.cx, b.cy, srcSize);
+        const { value, conf } = classifyByTemplate(gray, b.cx, b.cy, srcWinForBlob(b));
         const shield = isShield(frame, b.cx, b.cy, cs);
         return { value, shield, conf };
       })
@@ -161,7 +164,7 @@ export function recognizeFrame(frame, boardRect = null) {
   let isMyTurn = false, rolledDie = 0, rolledShield = false;
   if (inFrameWindow(L.holdMine.cx, L.holdMine.cy, holdHalf, gray.width, gray.height)) {
     const hb = findDieBlob(gray, L.holdMine.cx, L.holdMine.cy, holdHalf, blobOpts);
-    if (hb) { isMyTurn = true; rolledDie = classifyByTemplate(gray, hb.cx, hb.cy, srcSize).value; rolledShield = isShield(frame, hb.cx, hb.cy, cs); }
+    if (hb) { isMyTurn = true; rolledDie = classifyByTemplate(gray, hb.cx, hb.cy, srcWinForBlob(hb)).value; rolledShield = isShield(frame, hb.cx, hb.cy, cs); }
   }
 
   // 보너스 주사위: 굴린 주사위가 쉴드 + 내 필드에 이미 주사위 있음(첫턴 제외 — 상대필드 배치 불가)
