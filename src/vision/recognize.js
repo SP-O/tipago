@@ -83,7 +83,8 @@ function ssdMasked(p, T, mask) {
   return s;
 }
 
-function classifyByTemplate(gray, cx, cy, srcSize) {
+// 한 위치에서의 원시 템플릿 매칭(최적/차선).
+function matchAt(gray, cx, cy, srcSize) {
   const p = normPatchScaled(gray, cx, cy, srcSize, TPL_SIZE);
   let bestVal = -1, secondVal = -1, bestScore = Infinity, secondScore = Infinity;
   for (let k = 1; k <= 6; k++) {
@@ -92,6 +93,25 @@ function classifyByTemplate(gray, cx, cy, srcSize) {
     if (s < bestScore) { secondScore = bestScore; secondVal = bestVal; bestScore = s; bestVal = k; }
     else if (s < secondScore) { secondScore = s; secondVal = k; }
   }
+  return { p, bestVal, secondVal, bestScore, secondScore };
+}
+
+// 중심 정밀화 반경(px): 라이브 캡처는 프레임마다 블롭 bbox 중심이 몇px 흔들려(노이즈/글로우)
+// 템플릿 매칭이 어긋난다. 특히 5는 판별 점이 모서리라 중심 오차에 취약(→ 5만 3으로 튐).
+const REFINE = 3;
+
+export function classifyByTemplate(gray, cx, cy, srcSize) {
+  // ±REFINE 이웃에서 best-template SSD가 최소인 중심을 골라 중심 지터에 강인하게 분류.
+  // 정중심에서 정답 SSD가 압도적으로 낮으므로 국소 탐색이 참중심을 되찾는다(오답 유인 없음).
+  let m = matchAt(gray, cx, cy, srcSize);
+  for (let dy = -REFINE; dy <= REFINE; dy++) {
+    for (let dx = -REFINE; dx <= REFINE; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const c = matchAt(gray, cx + dx, cy + dy, srcSize);
+      if (c.bestScore < m.bestScore) m = c;
+    }
+  }
+  const { p, bestVal, secondVal, bestScore, secondScore } = m;
   // 상위 두 후보가 정확히 3과 5면 차이영역 판별기로 재결정(+ 넓어진 마진을 conf로 노출).
   if (MASK_35 && ((bestVal === 3 && secondVal === 5) || (bestVal === 5 && secondVal === 3))) {
     const m3 = ssdMasked(p, TEMPLATES[3], MASK_35);
